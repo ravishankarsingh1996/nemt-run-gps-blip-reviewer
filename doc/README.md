@@ -52,7 +52,7 @@ No installation, no server, no account. Everything runs in your browser.
 
 ## Quick start
 
-1. Double-click **`site/run_gps_viewer.html`** to open it in your browser.
+1. Double-click **`run_gps_viewer.html`** to open it in your browser.
 2. Click **📁 Upload run / session** (top-left) and choose **`samples/sample_run.json`** from the project folder.
 3. The trip appears on the map. Press **▶** in the bottom bar to watch the car drive the route.
 4. Want the full NEMT demo? Click **⬆ Import** in the right panel and choose **`samples/sample_markers.json`** — this drops a pickup, a dropoff, and a depot marker. Then click **🩺 Trip Audit**.
@@ -337,10 +337,9 @@ No. Parsing, analytics, and audit all run in your browser. Only the map tiles an
 
 ```
 run-gps-viewer-docs/
+├── run_gps_viewer.html       ← the tool (open this)
 ├── doc/
 │   └── README.md             ← this guide
-├── site/
-│   └── run_gps_viewer.html   ← the tool (open this)
 ├── images/                   ← screenshots used in this guide
 └── samples/
     ├── sample_run.json       ← a demo NEMT trip (16 blips)
