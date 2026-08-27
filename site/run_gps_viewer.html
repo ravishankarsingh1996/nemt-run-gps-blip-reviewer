@@ -625,9 +625,33 @@
     .car-rot { transform-origin: center; transition: none; }
     .car-rot svg { display: block; filter: drop-shadow(0 2px 3px rgba(0,0,0,.35)); }
 
+    /* ---------- Documentation link ---------- */
+    .doc-link {
+      position: absolute;
+      left: 12px;
+      bottom: 20px;
+      z-index: 1200;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color .15s, border-color .15s;
+    }
+    .doc-link:hover { color: var(--accent); border-color: var(--accent-hover); }
+
     @media (max-width: 640px) {
       .playbar { gap: 8px 10px; padding: 8px 10px; }
       .play-info { width: 100%; text-align: center; }
+      /* The playbar spans nearly the full width here and would cover the link. */
+      .doc-link { display: none; }
     }
 
     /* ---------- Analytics modal ---------- */
@@ -870,6 +894,14 @@
     <div id="addBanner" class="add-banner">
       🎯 Click anywhere on the map to drop a marker · <span style="text-decoration:underline;cursor:pointer" id="exitAdd">Done</span>
     </div>
+
+    <a
+      class="doc-link"
+      href="https://github.com/ravishankarsingh1996/nemt-run-gps-blip-reviewer/blob/main/doc/README.md"
+      target="_blank"
+      rel="noopener noreferrer"
+      title="Open the Run GPS Viewer documentation in a new tab"
+    >📖 Documentation</a>
 
     <div id="playbar" class="playbar disabled">
       <button id="playBtn" class="play-btn" title="Play / Pause">▶</button>

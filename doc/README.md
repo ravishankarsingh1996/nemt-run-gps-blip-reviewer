@@ -4,7 +4,7 @@ A single-file, browser-based tool for **visualizing, replaying, and auditing GPS
 
 Upload a run's GPS JSON and the tool draws the path on a map, lets you replay it with an animated car, place named pickup/dropoff markers, and produce a compliance audit (verification, dwell times, on-time performance, loaded vs. deadhead mileage) — all offline in one HTML file.
 
-![Overview of the Run GPS Viewer with a trip loaded](images/01-overview.png)
+![Overview of the Run GPS Viewer with a trip loaded](../images/01-overview.png)
 *The main screen: toolbar on top, map in the center, the custom-markers panel on the right, and the playback bar at the bottom.*
 
 ---
@@ -27,7 +27,7 @@ Upload a run's GPS JSON and the tool draws the path on a map, lets you replay it
 14. [How loaded-mile inference works](#how-loaded-mile-inference-works)
 15. [Data formats](#data-formats)
 16. [Troubleshooting & FAQ](#troubleshooting--faq)
-17. [What's in this folder](#whats-in-this-folder)
+17. [What's in this project](#whats-in-this-project)
 
 ---
 
@@ -53,7 +53,7 @@ No installation, no server, no account. Everything runs in your browser.
 ## Quick start
 
 1. Double-click **`site/run_gps_viewer.html`** to open it in your browser.
-2. Click **📁 Upload run / session** (top-left) and choose **`samples/sample_run.json`** from this folder.
+2. Click **📁 Upload run / session** (top-left) and choose **`samples/sample_run.json`** from the project folder.
 3. The trip appears on the map. Press **▶** in the bottom bar to watch the car drive the route.
 4. Want the full NEMT demo? Click **⬆ Import** in the right panel and choose **`samples/sample_markers.json`** — this drops a pickup, a dropoff, and a depot marker. Then click **🩺 Trip Audit**.
 
@@ -63,7 +63,7 @@ That's the whole loop: **load → visualize → mark stops → audit**.
 
 ## The interface at a glance
 
-![The toolbar controls](images/02-toolbar.png)
+![The toolbar controls](../images/02-toolbar.png)
 
 | Control | What it does |
 | --- | --- |
@@ -81,7 +81,7 @@ That's the whole loop: **load → visualize → mark stops → audit**.
 
 When you first open the tool, the map is empty and waiting for data.
 
-![Empty state before loading a run](images/03-empty.png)
+![Empty state before loading a run](../images/03-empty.png)
 
 **To load a trip:**
 
@@ -120,7 +120,7 @@ The right-hand **Custom markers** panel is where you annotate the trip. Markers 
 
 Pickups and dropoffs are what power the [Trip Audit](#7-nemt-trip-audit) and [loaded-mile inference](#how-loaded-mile-inference-works). You can add as many of each as you like.
 
-![The add-a-stop form in Pickup mode](images/04-sidebar-pickup.png)
+![The add-a-stop form in Pickup mode](../images/04-sidebar-pickup.png)
 *Pickup mode shows an optional Scheduled-time field used for on-time performance.*
 
 ### Adding a marker by coordinates
@@ -141,11 +141,11 @@ Pickups and dropoffs are what power the [Trip Audit](#7-nemt-trip-audit) and [lo
 
 Switch the type to **• Plain** and a color palette appears — pick a preset or use the custom color picker. Each plain marker in the list has a color swatch you can click to recolor it any time.
 
-![The add form in Plain mode showing the color palette](images/05-sidebar-plain.png)
+![The add form in Plain mode showing the color palette](../images/05-sidebar-plain.png)
 
 ### Managing markers
 
-![The marker list with pickup, dropoff, and plain entries](images/07-marker-list.png)
+![The marker list with pickup, dropoff, and plain entries](../images/07-marker-list.png)
 
 Every marker appears in **Your markers**. For each one you can:
 
@@ -166,7 +166,7 @@ Two settings in the sidebar tune the audit:
 - **Geofence radius** — the distance (20–300 m) around each pickup/dropoff within which the vehicle counts as "reached" the stop. A faint circle is drawn around each pickup/dropoff so you can see the zone. Tighten it for strict verification; widen it for large facilities or noisy GPS.
 - **Speed limit for safety flags** — segments faster than this (default 80 km/h) are flagged in the audit.
 
-![Pickup, dropoff, and depot markers on the map with geofence circles](images/06-markers-map.png)
+![Pickup, dropoff, and depot markers on the map with geofence circles](../images/06-markers-map.png)
 *A green **P** pickup and red **D** dropoff (each ringed by its geofence) alongside a blue plain "Dispatch Depot" marker.*
 
 ---
@@ -175,7 +175,7 @@ Two settings in the sidebar tune the audit:
 
 The bar at the bottom of the map replays the trip with a car that follows the exact path.
 
-![The playback control bar](images/08-playback.png)
+![The playback control bar](../images/08-playback.png)
 
 - **▶ / ⏸** — play or pause. The car moves using the **real timestamps**, so it lingers where the driver waited and speeds up where they drove fast — you see how the trip actually unfolded.
 - **⟲ Reset** — send the car back to the start of the current direction.
@@ -190,11 +190,11 @@ The bar at the bottom of the map replays the trip with a car that follows the ex
 
 Click **📊 Analytics** for a statistical view of the gaps between blips — useful for spotting reporting gaps and GPS quality issues.
 
-![Analytics summary and time-gap chart](images/09-analytics-stats.png)
+![Analytics summary and time-gap chart](../images/09-analytics-stats.png)
 
 At the top are summary tiles (total distance, duration, average/max speed, average/median/longest time gap, etc.). Below are three interactive charts:
 
-![Distance and speed charts](images/10-analytics-charts.png)
+![Distance and speed charts](../images/10-analytics-charts.png)
 
 - **Time gap between blips** — tall bars mean the device paused or stopped reporting.
 - **Distance between blips** — how far the vehicle moved each step.
@@ -213,7 +213,7 @@ At the top are summary tiles (total distance, duration, average/max speed, avera
 
 Click **🩺 Trip Audit** for the compliance view. It combines your pickup/dropoff markers with the GPS track to answer the questions a NEMT trip gets audited on.
 
-![The NEMT Trip Audit panel](images/11-audit.png)
+![The NEMT Trip Audit panel](../images/11-audit.png)
 
 **Summary tiles:** number of stops, how many were **verified** (the vehicle came within the geofence), **loaded (billable) miles**, **deadhead** (empty) miles, total distance, and the inferred maximum passengers aboard.
 
@@ -238,7 +238,7 @@ Click **🩺 Trip Audit** for the compliance view. It combines your pickup/dropo
 
 Tick **Loaded / deadhead** in the toolbar to recolor the route by whether a passenger was aboard.
 
-![Path colored by loaded vs deadhead segments](images/12-loaded-deadhead.png)
+![Path colored by loaded vs deadhead segments](../images/12-loaded-deadhead.png)
 
 - **Purple** = loaded (passenger aboard) — the billable portion.
 - **Gray** = deadhead (empty vehicle).
@@ -251,7 +251,7 @@ A legend appears at the bottom-left. This is derived from the order in which the
 
 Set everything up once, then save it as a single file to reopen later or hand to a colleague.
 
-![Save session confirmation](images/13-save-session.png)
+![Save session confirmation](../images/13-save-session.png)
 
 1. Load a run, place your markers, and adjust settings/view as you like.
 2. Click **💾 Save session** — a `gps_session_*.json` file downloads. It contains the run, all markers (with types and scheduled times), every setting (timezone, geofence, speed limit, layer toggles), and the current map center/zoom.
@@ -333,11 +333,12 @@ No. Parsing, analytics, and audit all run in your browser. Only the map tiles an
 
 ---
 
-## What's in this folder
+## What's in this project
 
 ```
 run-gps-viewer-docs/
-├── README.md                 ← this guide
+├── doc/
+│   └── README.md             ← this guide
 ├── site/
 │   └── run_gps_viewer.html   ← the tool (open this)
 ├── images/                   ← screenshots used in this guide
