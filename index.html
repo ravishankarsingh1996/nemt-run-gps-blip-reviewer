@@ -339,6 +339,45 @@
       box-shadow: 0 0 0 3px var(--danger-soft);
     }
 
+    /* ---------- Address search (OpenStreetMap Nominatim) ---------- */
+    .geo-row { display: flex; gap: 8px; }
+    .geo-row input { flex: 1; min-width: 0; }
+    .geo-btn { flex: none; padding: 8px 11px; }
+    .geo-btn[disabled] { opacity: .55; cursor: default; }
+
+    .geo-results {
+      display: none;
+      flex-direction: column;
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      background: var(--panel);
+      max-height: 196px;
+      overflow-y: auto;
+    }
+    .geo-results.open { display: flex; }
+
+    .geo-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      font: inherit;
+      font-size: 12px;
+      line-height: 1.45;
+      padding: 8px 10px;
+      background: none;
+      border: 0;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .geo-item:last-child { border-bottom: none; }
+    .geo-item:hover, .geo-item:focus { background: var(--custom-soft); outline: none; }
+    .geo-item .geo-main { display: block; font-weight: 600; }
+    .geo-item .geo-sub { color: var(--muted); }
+
+    .geo-note { padding: 8px 10px; font-size: 11.5px; color: var(--muted); }
+    .geo-note.error { color: var(--danger); }
+
     .swatch-row { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
     .swatch-opt {
       width: 22px; height: 22px; border-radius: 50%;
@@ -897,7 +936,7 @@
 
     <a
       class="doc-link"
-      href="https://github.com/ravishankarsingh1996/nemt-run-gps-blip-reviewer/blob/main/doc/README.md"
+      href="https://github.com/ravishankarsingh1996/nemt-run-gps-blip-reviewer/blob/main/README.md"
       target="_blank"
       rel="noopener noreferrer"
       title="Open the Run GPS Viewer documentation in a new tab"
@@ -954,6 +993,11 @@
               <button type="button" data-kind="plain" style="flex:1">• Plain</button>
             </div>
             <input id="mName" type="text" placeholder="Name (e.g. Dialysis Center, Patient home)" />
+            <div class="geo-row">
+              <input id="mAddr" type="text" placeholder="Search an address or place…" />
+              <button type="button" id="geoBtn" class="btn geo-btn" title="Look this address up on OpenStreetMap">🔍</button>
+            </div>
+            <div id="geoResults" class="geo-results"></div>
             <div class="row">
               <input id="mLat" type="text" inputmode="decimal" placeholder="Latitude" />
               <input id="mLng" type="text" inputmode="decimal" placeholder="Longitude" />
@@ -967,7 +1011,7 @@
               <div id="swatchRow" class="swatch-row"></div>
             </div>
             <button type="submit" class="btn primary" style="justify-content:center">➕ Add stop</button>
-            <div class="hint">Pickups/dropoffs power the trip audit (verification, dwell, loaded miles). Tip: paste "<b>lat, lng</b>" into the Latitude box.</div>
+            <div class="hint">Give the stop a name, then locate it either way: search an address, or type coordinates. Pickups/dropoffs power the trip audit (verification, dwell, loaded miles). Tip: paste "<b>lat, lng</b>" into the Latitude box. Address search is powered by <b>OpenStreetMap Nominatim</b>.</div>
           </form>
         </div>
 
@@ -1130,6 +1174,9 @@
   var addForm     = $("addForm");
   var mName       = $("mName");
   var mLat        = $("mLat");
+  var mAddr       = $("mAddr");
+  var geoBtn      = $("geoBtn");
+  var geoResults  = $("geoResults");
   var mLng        = $("mLng");
   var markerList  = $("markerList");
   var countBadge  = $("countBadge");
@@ -1897,24 +1944,229 @@
   });
   applyKindUI();
 
-  addForm.addEventListener("submit", function (e) {
+  /* ---------- Address search, via OpenStreetMap's Nominatim geocoder ----------
+     Nominatim is a free, donated service, and its usage policy allows only
+     light, user-driven traffic: at most one request per second, and no bulk
+     querying. So a lookup fires only on a deliberate action (the search
+     button, Enter, or submitting with an address but no coordinates) and never
+     per keystroke; requests are spaced by GEO_MIN_GAP_MS, only one is ever in
+     flight, and answers are cached so repeating a query costs nothing. */
+  var GEO_URL = "https://nominatim.openstreetmap.org/search";
+  var GEO_MIN_GAP_MS = 1100;
+  var geoCache = {};
+  var geoLastAt = 0;
+  var geoPending = null;   // AbortController for the in-flight request, if any
+  var geoTimer = null;
+
+  function geoClose() {
+    geoResults.innerHTML = "";
+    geoResults.classList.remove("open");
+  }
+
+  function geoNote(msg, isError) {
+    geoResults.innerHTML = "";
+    var d = document.createElement("div");
+    d.className = "geo-note" + (isError ? " error" : "");
+    d.textContent = msg;
+    geoResults.appendChild(d);
+    geoResults.classList.add("open");
+  }
+
+  function geoSetBusy(on) {
+    geoBtn.disabled = !!on;
+    geoBtn.textContent = on ? "…" : "🔍";
+  }
+
+  // Nominatim's "name" is the short label ("Dialysis Center"); display_name is
+  // the full comma-separated address. Fall back to the first segment.
+  function geoShortName(row) {
+    var n = row.name ? String(row.name).trim() : "";
+    if (n) return n;
+    return String(row.display_name || "").split(",")[0].trim();
+  }
+
+  function geoLookup(query, onDone) {
+    var key = query.toLowerCase();
+    if (geoCache[key]) { onDone(null, geoCache[key]); return; }
+
+    if (geoPending) { geoPending.abort(); geoPending = null; }
+    if (geoTimer) { clearTimeout(geoTimer); geoTimer = null; }
+
+    geoSetBusy(true);
+    geoNote("Searching OpenStreetMap…");
+
+    var wait = Math.max(0, GEO_MIN_GAP_MS - (Date.now() - geoLastAt));
+    geoTimer = setTimeout(function () {
+      geoTimer = null;
+      geoLastAt = Date.now();
+
+      var ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+      geoPending = ctrl;
+
+      var url = GEO_URL + "?format=jsonv2&limit=5&q=" + encodeURIComponent(query);
+      fetch(url, {
+        signal: ctrl ? ctrl.signal : undefined,
+        headers: { "Accept": "application/json" }
+      })
+        .then(function (res) {
+          if (!res.ok) throw new Error("OpenStreetMap returned HTTP " + res.status);
+          return res.json();
+        })
+        .then(function (rows) {
+          if (!Array.isArray(rows)) rows = [];
+          var out = [];
+          rows.forEach(function (r) {
+            var lat = Number(r.lat), lng = Number(r.lon);
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+            out.push({ lat: lat, lng: lng, name: geoShortName(r), label: String(r.display_name || "") });
+          });
+          geoCache[key] = out;
+          geoPending = null;
+          geoSetBusy(false);
+          onDone(null, out);
+        })
+        .catch(function (err) {
+          if (err && err.name === "AbortError") return;   // superseded by a newer search
+          geoPending = null;
+          geoSetBusy(false);
+          onDone(err, null);
+        });
+    }, wait);
+  }
+
+  // Drop a resolved hit into the coordinate fields and move the map there, so
+  // the spot can be eyeballed before the marker is committed.
+  function geoFill(hit) {
+    mLat.value = hit.lat.toFixed(6);
+    mLng.value = hit.lng.toFixed(6);
+    mLat.classList.remove("invalid");
+    mLng.classList.remove("invalid");
+    if (!mName.value.trim()) mName.value = hit.name;
+    map.setView([hit.lat, hit.lng], Math.max(map.getZoom(), 16));
+    geoClose();
+    status.className = "status";
+    status.textContent = "Found " + hit.label + ". Check the spot, then press Add stop.";
+  }
+
+  function geoRenderHits(hits, query) {
+    if (!hits.length) { geoNote('No place matched "' + query + '".'); return; }
+    geoResults.innerHTML = "";
+    hits.forEach(function (hit) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "geo-item";
+      var main = document.createElement("span");
+      main.className = "geo-main";
+      main.textContent = hit.name || hit.label;   // textContent: remote data is never HTML
+      var sub = document.createElement("span");
+      sub.className = "geo-sub";
+      sub.textContent = hit.label;
+      b.appendChild(main);
+      b.appendChild(sub);
+      b.addEventListener("click", function () { geoFill(hit); });
+      geoResults.appendChild(b);
+    });
+    geoResults.classList.add("open");
+  }
+
+  // Offline, blocked, or rate-limited all land here. The coordinate fields
+  // still work, so say so rather than leaving a dead end.
+  function geoFailNote(err) {
+    geoNote("Address search unavailable (" + ((err && err.message) || "network error") +
+            "). You can still enter latitude and longitude.", true);
+  }
+
+  function geoSearchFromInput() {
+    var q = mAddr.value.trim();
+    if (q.length < 3) { geoNote("Type at least 3 characters to search."); return; }
+    geoLookup(q, function (err, hits) {
+      if (err) { geoFailNote(err); return; }
+      geoRenderHits(hits, q);
+    });
+  }
+
+  geoBtn.addEventListener("click", geoSearchFromInput);
+
+  // Enter in the address box searches instead of submitting the form, so the
+  // user picks among the matches rather than blind-adding the first one.
+  mAddr.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter") return;
     e.preventDefault();
-    var coords = parseCoordInputs();
-    if (!coords) {
-      status.className = "status error";
-      status.textContent = "Enter a valid latitude (-90..90) and longitude (-180..180).";
-      return;
-    }
+    geoSearchFromInput();
+  });
+
+  mAddr.addEventListener("input", function () {
+    if (!mAddr.value.trim()) geoClose();
+  });
+
+  function commitMarker(coords, hit) {
     var name = mName.value.trim();
+    if (!name && hit) name = hit.name;
     if (!showCustom.checked) { showCustom.checked = true; customLayer.addTo(map); }
     var m = addCustomMarker(coords.lat, coords.lng, name, {
       open: true, kind: currentKind, schedMs: (currentKind === "plain" ? null : parseSched())
     });
-    mName.value = ""; mLat.value = ""; mLng.value = ""; mSched.value = "";
+    mName.value = ""; mLat.value = ""; mLng.value = ""; mSched.value = ""; mAddr.value = "";
     mLat.classList.remove("invalid"); mLng.classList.remove("invalid");
+    geoClose();
     mName.focus();
     status.className = "status";
-    status.textContent = 'Added ' + m.kind + ' "' + (m.name) + '".';
+    status.textContent = 'Added ' + m.kind + ' "' + m.name + '"' + (hit ? " at " + hit.label : "") + ".";
+    return m;
+  }
+
+  addForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+
+    // Coordinates win when either field is filled; otherwise resolve whatever
+    // is in the address box.
+    var hasCoordText = mLat.value.trim() !== "" || mLng.value.trim() !== "";
+    if (hasCoordText) {
+      var coords = parseCoordInputs();
+      if (!coords) {
+        status.className = "status error";
+        status.textContent = "Enter a valid latitude (-90..90) and longitude (-180..180).";
+        return;
+      }
+      commitMarker(coords, null);
+      return;
+    }
+
+    var q = mAddr.value.trim();
+    if (!q) {
+      status.className = "status error";
+      status.textContent = "Search an address, or enter a latitude and longitude, before adding a stop.";
+      return;
+    }
+    if (q.length < 3) { geoNote("Type at least 3 characters to search."); return; }
+
+    status.className = "status";
+    status.textContent = 'Looking up "' + q + '" on OpenStreetMap…';
+    geoLookup(q, function (err, hits) {
+      if (err) {
+        status.className = "status error";
+        status.textContent = "Address search unavailable (" + ((err && err.message) || "network error") +
+                             "). Enter a latitude and longitude instead.";
+        geoFailNote(err);
+        return;
+      }
+      if (!hits.length) {
+        status.className = "status error";
+        status.textContent = 'No place matched "' + q + '". Try a fuller address, or enter coordinates.';
+        geoNote('No place matched "' + q + '".');
+        return;
+      }
+      // One clear hit: add it. Several: let the user choose.
+      if (hits.length === 1) {
+        var only = hits[0];
+        map.setView([only.lat, only.lng], Math.max(map.getZoom(), 16));
+        commitMarker({ lat: only.lat, lng: only.lng }, only);
+        return;
+      }
+      geoRenderHits(hits, q);
+      status.className = "status";
+      status.textContent = hits.length + ' places match "' + q + '" — pick the right one below the address box.';
+    });
   });
 
   geofence.addEventListener("input", function () {

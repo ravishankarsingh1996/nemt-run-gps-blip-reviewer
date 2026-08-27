@@ -4,7 +4,7 @@ A single-file, browser-based tool for **visualizing, replaying, and auditing GPS
 
 Upload a run's GPS JSON and the tool draws the path on a map, lets you replay it with an animated car, place named pickup/dropoff markers, and produce a compliance audit (verification, dwell times, on-time performance, loaded vs. deadhead mileage) — all offline in one HTML file.
 
-![Overview of the Run GPS Viewer with a trip loaded](../images/01-overview.png)
+![Overview of the Run GPS Viewer with a trip loaded](images/01-overview.png)
 *The main screen: toolbar on top, map in the center, the custom-markers panel on the right, and the playback bar at the bottom.*
 
 ---
@@ -28,6 +28,7 @@ Upload a run's GPS JSON and the tool draws the path on a map, lets you replay it
 15. [Data formats](#data-formats)
 16. [Troubleshooting & FAQ](#troubleshooting--faq)
 17. [What's in this project](#whats-in-this-project)
+18. [Credits & open-source licenses](#credits--open-source-licenses)
 
 ---
 
@@ -52,7 +53,7 @@ No installation, no server, no account. Everything runs in your browser.
 
 ## Quick start
 
-1. Double-click **`run_gps_viewer.html`** to open it in your browser.
+1. Double-click **`index.html`** to open it in your browser.
 2. Click **📁 Upload run / session** (top-left) and choose **`samples/sample_run.json`** from the project folder.
 3. The trip appears on the map. Press **▶** in the bottom bar to watch the car drive the route.
 4. Want the full NEMT demo? Click **⬆ Import** in the right panel and choose **`samples/sample_markers.json`** — this drops a pickup, a dropoff, and a depot marker. Then click **🩺 Trip Audit**.
@@ -63,7 +64,7 @@ That's the whole loop: **load → visualize → mark stops → audit**.
 
 ## The interface at a glance
 
-![The toolbar controls](../images/02-toolbar.png)
+![The toolbar controls](images/02-toolbar.png)
 
 | Control | What it does |
 | --- | --- |
@@ -81,7 +82,7 @@ That's the whole loop: **load → visualize → mark stops → audit**.
 
 When you first open the tool, the map is empty and waiting for data.
 
-![Empty state before loading a run](../images/03-empty.png)
+![Empty state before loading a run](images/03-empty.png)
 
 **To load a trip:**
 
@@ -120,8 +121,30 @@ The right-hand **Custom markers** panel is where you annotate the trip. Markers 
 
 Pickups and dropoffs are what power the [Trip Audit](#7-nemt-trip-audit) and [loaded-mile inference](#how-loaded-mile-inference-works). You can add as many of each as you like.
 
-![The add-a-stop form in Pickup mode](../images/04-sidebar-pickup.png)
+![The add-a-stop form in Pickup mode](images/04-sidebar-pickup.png)
 *Pickup mode shows an optional Scheduled-time field used for on-time performance.*
+
+There are three ways to place one: by **address**, by **coordinates**, or by **clicking the map**.
+
+### Adding a marker by address
+
+Use this when you know where the stop is but not its latitude and longitude.
+
+1. Choose the type (**Pickup / Dropoff / Plain**).
+2. Optionally type a **Name**. If you leave it blank, the place name from the search result is used.
+3. Type the address or place into **Search an address or place…** — for example `Apollo Hospital Bannerghatta Road Bangalore`.
+4. Press **Enter** or click **🔍**. Up to five matches appear beneath the box, each showing the place name and its full address.
+5. Click the right match. The map jumps to it and the **Latitude** / **Longitude** fields fill in, so you can confirm the pin lands where you expect.
+6. Click **➕ Add stop**.
+
+You can also skip the picking step: type an address, leave the coordinate fields empty, and click **➕ Add stop** directly. If exactly one place matches it is added straight away; if several do, the matches are listed so you can choose.
+
+The lookup uses [OpenStreetMap's Nominatim geocoder](https://nominatim.openstreetmap.org/), so it needs internet. If it is unreachable the panel says so and the coordinate fields keep working. A few notes:
+
+- Searches run only when you ask for one — on **Enter**, the **🔍** button, or **Add stop** — never as you type. This keeps the tool inside [Nominatim's usage policy](https://operations.osmfoundation.org/policies/nominatim/), which allows at most one request per second and no bulk querying.
+- Repeated searches for the same text are answered from an in-memory cache.
+- The address text you search **is sent to Nominatim** — it is the one thing the tool transmits. See [the FAQ](#troubleshooting--faq).
+- A fuller address gives better results. If nothing matches, add the city or postcode.
 
 ### Adding a marker by coordinates
 
@@ -130,6 +153,8 @@ Pickups and dropoffs are what power the [Trip Audit](#7-nemt-trip-audit) and [lo
 3. Enter **Latitude** and **Longitude**. *Tip: you can paste `12.9650, 77.5975` straight into the Latitude box — it splits automatically.*
 4. For pickups/dropoffs, optionally set a **Scheduled time** (used to compute early/late).
 5. Click **➕ Add stop**.
+
+If a coordinate field has anything in it, coordinates take priority over the address box.
 
 ### Adding a marker by clicking the map
 
@@ -141,11 +166,11 @@ Pickups and dropoffs are what power the [Trip Audit](#7-nemt-trip-audit) and [lo
 
 Switch the type to **• Plain** and a color palette appears — pick a preset or use the custom color picker. Each plain marker in the list has a color swatch you can click to recolor it any time.
 
-![The add form in Plain mode showing the color palette](../images/05-sidebar-plain.png)
+![The add form in Plain mode showing the color palette](images/05-sidebar-plain.png)
 
 ### Managing markers
 
-![The marker list with pickup, dropoff, and plain entries](../images/07-marker-list.png)
+![The marker list with pickup, dropoff, and plain entries](images/07-marker-list.png)
 
 Every marker appears in **Your markers**. For each one you can:
 
@@ -166,7 +191,7 @@ Two settings in the sidebar tune the audit:
 - **Geofence radius** — the distance (20–300 m) around each pickup/dropoff within which the vehicle counts as "reached" the stop. A faint circle is drawn around each pickup/dropoff so you can see the zone. Tighten it for strict verification; widen it for large facilities or noisy GPS.
 - **Speed limit for safety flags** — segments faster than this (default 80 km/h) are flagged in the audit.
 
-![Pickup, dropoff, and depot markers on the map with geofence circles](../images/06-markers-map.png)
+![Pickup, dropoff, and depot markers on the map with geofence circles](images/06-markers-map.png)
 *A green **P** pickup and red **D** dropoff (each ringed by its geofence) alongside a blue plain "Dispatch Depot" marker.*
 
 ---
@@ -175,7 +200,7 @@ Two settings in the sidebar tune the audit:
 
 The bar at the bottom of the map replays the trip with a car that follows the exact path.
 
-![The playback control bar](../images/08-playback.png)
+![The playback control bar](images/08-playback.png)
 
 - **▶ / ⏸** — play or pause. The car moves using the **real timestamps**, so it lingers where the driver waited and speeds up where they drove fast — you see how the trip actually unfolded.
 - **⟲ Reset** — send the car back to the start of the current direction.
@@ -190,11 +215,11 @@ The bar at the bottom of the map replays the trip with a car that follows the ex
 
 Click **📊 Analytics** for a statistical view of the gaps between blips — useful for spotting reporting gaps and GPS quality issues.
 
-![Analytics summary and time-gap chart](../images/09-analytics-stats.png)
+![Analytics summary and time-gap chart](images/09-analytics-stats.png)
 
 At the top are summary tiles (total distance, duration, average/max speed, average/median/longest time gap, etc.). Below are three interactive charts:
 
-![Distance and speed charts](../images/10-analytics-charts.png)
+![Distance and speed charts](images/10-analytics-charts.png)
 
 - **Time gap between blips** — tall bars mean the device paused or stopped reporting.
 - **Distance between blips** — how far the vehicle moved each step.
@@ -213,7 +238,7 @@ At the top are summary tiles (total distance, duration, average/max speed, avera
 
 Click **🩺 Trip Audit** for the compliance view. It combines your pickup/dropoff markers with the GPS track to answer the questions a NEMT trip gets audited on.
 
-![The NEMT Trip Audit panel](../images/11-audit.png)
+![The NEMT Trip Audit panel](images/11-audit.png)
 
 **Summary tiles:** number of stops, how many were **verified** (the vehicle came within the geofence), **loaded (billable) miles**, **deadhead** (empty) miles, total distance, and the inferred maximum passengers aboard.
 
@@ -238,7 +263,7 @@ Click **🩺 Trip Audit** for the compliance view. It combines your pickup/dropo
 
 Tick **Loaded / deadhead** in the toolbar to recolor the route by whether a passenger was aboard.
 
-![Path colored by loaded vs deadhead segments](../images/12-loaded-deadhead.png)
+![Path colored by loaded vs deadhead segments](images/12-loaded-deadhead.png)
 
 - **Purple** = loaded (passenger aboard) — the billable portion.
 - **Gray** = deadhead (empty vehicle).
@@ -251,7 +276,7 @@ A legend appears at the bottom-left. This is derived from the order in which the
 
 Set everything up once, then save it as a single file to reopen later or hand to a colleague.
 
-![Save session confirmation](../images/13-save-session.png)
+![Save session confirmation](images/13-save-session.png)
 
 1. Load a run, place your markers, and adjust settings/view as you like.
 2. Click **💾 Save session** — a `gps_session_*.json` file downloads. It contains the run, all markers (with types and scheduled times), every setting (timezone, geofence, speed limit, layer toggles), and the current map center/zoom.
@@ -329,7 +354,12 @@ The scheduled time you entered is in a very different timezone from the trip. Se
 Check that each pickup/dropoff marker sits on the actual stop and within the geofence radius, and that pickups and dropoffs are balanced. Widen the geofence if a stop shows as unverified.
 
 **Does my data leave my computer?**
-No. Parsing, analytics, and audit all run in your browser. Only the map tiles and the two libraries are fetched from the web.
+Your GPS data does not. Parsing, analytics, and the audit all run in your browser, and no run file, marker set, or session is ever uploaded.
+
+Three things do go over the network: map tiles are fetched from OpenStreetMap, the JavaScript libraries are fetched from their CDNs, and — only when you run an address search — the text you typed into the search box is sent to OpenStreetMap's Nominatim service. Coordinates you type by hand are never sent anywhere. If you avoid the address search, nothing about your trip leaves the browser.
+
+**Address search returns nothing, or says it is unavailable.**
+It needs internet, so check the connection first. Otherwise try a fuller address with a city or postcode — Nominatim matches on OpenStreetMap data, which covers some areas better than others. If searching stays unavailable, the request may have been rate-limited: wait a moment and try once more, or enter the latitude and longitude directly.
 
 ---
 
@@ -337,15 +367,46 @@ No. Parsing, analytics, and audit all run in your browser. Only the map tiles an
 
 ```
 run-gps-viewer-docs/
-├── run_gps_viewer.html       ← the tool (open this)
-├── doc/
-│   └── README.md             ← this guide
+├── index.html                ← the tool (open this)
+├── README.md                 ← this guide
 ├── images/                   ← screenshots used in this guide
 └── samples/
     ├── sample_run.json       ← a demo NEMT trip (16 blips)
     ├── sample_markers.json   ← pickup + dropoff + depot markers
     └── sample_session.json   ← a full saved session (run + markers + settings)
 ```
+
+---
+
+## Credits & open-source licenses
+
+This tool is a single HTML file with no build step, and it stands entirely on open-source work. Nothing here is vendored — every library is loaded from a public CDN at runtime — so the versions below are the ones the file actually requests.
+
+### Map data & services
+
+**[OpenStreetMap](https://www.openstreetmap.org/)** — © OpenStreetMap contributors. Everything geographic in this tool comes from the OSM project.
+
+| Used for | Service | Terms |
+| --- | --- | --- |
+| Street map imagery behind the path | [OSM standard tile layer](https://tile.openstreetmap.org/) | Map data under the [Open Database License (ODbL) 1.0](https://opendatacommons.org/licenses/odbl/); tiles under [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0/), subject to the [Tile Usage Policy](https://operations.osmfoundation.org/policies/tiles/) |
+| Address → coordinate lookup in the marker panel | [Nominatim](https://nominatim.openstreetmap.org/) | Data under [ODbL 1.0](https://opendatacommons.org/licenses/odbl/); the Nominatim software is GPL-2.0; use is subject to the [Nominatim Usage Policy](https://operations.osmfoundation.org/policies/nominatim/) |
+
+Both are run as a public service by the [OpenStreetMap Foundation](https://osmfoundation.org/) and paid for by donations. They are not built for heavy or commercial traffic. This tool keeps its footprint small on purpose — searches fire only on an explicit action, are spaced at least a second apart, allow one request at a time, and are cached — but if you deploy it to a team or automate it, please [set up your own Nominatim instance](https://nominatim.org/release-docs/latest/admin/Installation/) or use a commercial geocoder, and consider [donating to the OSMF](https://supporting.openstreetmap.org/).
+
+### JavaScript libraries
+
+| Library | Version | License | Used for |
+| --- | --- | --- | --- |
+| [Leaflet](https://leafletjs.com/) | 1.9.4 | [BSD-2-Clause](https://github.com/Leaflet/Leaflet/blob/main/LICENSE) | The map, tile layer, markers, polylines, and popups |
+| [Chart.js](https://www.chartjs.org/) | 4.4.1 | [MIT](https://github.com/chartjs/Chart.js/blob/master/LICENSE.md) | The speed and gap charts in Trip Analytics |
+| [chartjs-plugin-zoom](https://www.chartjs.org/chartjs-plugin-zoom/latest/) | 2.0.1 | [MIT](https://github.com/chartjs/chartjs-plugin-zoom/blob/master/LICENSE.md) | Pan and zoom on those charts |
+| [Hammer.js](https://hammerjs.github.io/) | 2.0.8 | [MIT](https://github.com/hammerjs/hammer.js/blob/master/LICENSE.md) | Touch gestures the zoom plugin needs on mobile |
+
+Delivered by two free CDNs: [unpkg](https://unpkg.com/) (Leaflet) and [cdnjs](https://cdnjs.com/), run by [Cloudflare](https://www.cloudflare.com/) (the rest).
+
+### Attribution when you reuse this
+
+The OpenStreetMap credit in the bottom-right of the map is required by the ODbL — please leave it in place. If you fork this tool or embed it elsewhere, keep that attribution visible and credit OpenStreetMap contributors wherever the map or address search appears.
 
 ---
 
