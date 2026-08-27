@@ -1,0 +1,201 @@
+{
+  "__type": "run-gps-viewer-session",
+  "schemaVersion": 1,
+  "generatedBy": "Run GPS Viewer",
+  "generatedAt": "2026-08-27T11:12:10.820Z",
+  "settings": {
+    "timezone": "Asia/Kolkata",
+    "geofenceRadius": 60,
+    "speedLimitKmh": 80,
+    "currentKind": "plain",
+    "show": {
+      "path": true,
+      "markers": true,
+      "labels": true,
+      "custom": true,
+      "legs": true
+    },
+    "view": {
+      "center": [
+        12.973,
+        77.606
+      ],
+      "zoom": 13
+    }
+  },
+  "run": {
+    "filename": "sample_run.json",
+    "points": [
+      {
+        "id": "root.blips[0]",
+        "lat": 12.96,
+        "lng": 77.59,
+        "time": 1690000000000,
+        "accuracy": 6,
+        "statusId": null,
+        "bookingId": null
+      },
+      {
+        "id": "root.blips[1]",
+        "lat": 12.962,
+        "lng": 77.593,
+        "time": 1690000060000,
+        "accuracy": 6,
+        "statusId": null,
+        "bookingId": null
+      },
+      {
+        "id": "root.blips[2]",
+        "lat": 12.964,
+        "lng": 77.596,
+        "time": 1690000120000,
+        "accuracy": 6,
+        "statusId": null,
+        "bookingId": null
+      },
+      {
+        "id": "root.blips[3]",
+        "lat": 12.965,
+        "lng": 77.5975,
+        "time": 1690000165000,
+        "accuracy": 6,
+        "statusId": null,
+        "bookingId": null
+      },
+      {
+        "id": "root.blips[4]",
+        "lat": 12.965,
+        "lng": 77.5975,
+        "time": 1690000285000,
+        "accuracy": 6,
+        "statusId": null,
+        "bookingId": null
+      },
+      {
+        "id": "root.blips[5]",
+        "lat": 12.9651,
+        "lng": 77.5976,
+        "time": 1690000360000,
+        "accuracy": 6,
+        "statusId": null,
+        "bookingId": null
+      },
+      {
+        "id": "root.blips[6]",
+        "lat": 12.968,
+        "lng": 77.601,
+        "time": 1690000420000,
+        "accuracy": 6,
+        "statusId": null,
+        "bookingId": null
+      },
+      {
+        "id": "root.blips[7]",
+        "lat": 12.972,
+        "lng": 77.606,
+        "time": 1690000480000,
+        "accuracy": 6,
+        "statusId": null,
+        "bookingId": null
+      },
+      {
+        "id": "root.blips[8]",
+        "lat": 12.976,
+        "lng": 77.611,
+        "time": 1690000570000,
+        "accuracy": 6,
+        "statusId": null,
+        "bookingId": null
+      },
+      {
+        "id": "root.blips[9]",
+        "lat": 12.977,
+        "lng": 77.6125,
+        "time": 1690001170000,
+        "accuracy": 25,
+        "statusId": null,
+        "bookingId": null
+      },
+      {
+        "id": "root.blips[10]",
+        "lat": 12.982,
+        "lng": 77.619,
+        "time": 1690001230000,
+        "accuracy": 6,
+        "statusId": null,
+        "bookingId": null
+      },
+      {
+        "id": "root.blips[11]",
+        "lat": 12.985,
+        "lng": 77.6225,
+        "time": 1690001290000,
+        "accuracy": 6,
+        "statusId": null,
+        "bookingId": null
+      },
+      {
+        "id": "root.blips[12]",
+        "lat": 12.985,
+        "lng": 77.6225,
+        "time": 1690001380000,
+        "accuracy": 6,
+        "statusId": null,
+        "bookingId": null
+      },
+      {
+        "id": "root.blips[13]",
+        "lat": 12.9851,
+        "lng": 77.6226,
+        "time": 1690001440000,
+        "accuracy": 6,
+        "statusId": null,
+        "bookingId": null
+      },
+      {
+        "id": "root.blips[14]",
+        "lat": 12.988,
+        "lng": 77.626,
+        "time": 1690001500000,
+        "accuracy": 6,
+        "statusId": null,
+        "bookingId": null
+      },
+      {
+        "id": "root.blips[15]",
+        "lat": 12.991,
+        "lng": 77.63,
+        "time": 1690001560000,
+        "accuracy": 6,
+        "statusId": null,
+        "bookingId": null
+      }
+    ]
+  },
+  "markers": [
+    {
+      "name": "Patient Home",
+      "lat": 12.965,
+      "lng": 77.5975,
+      "color": "#059669",
+      "kind": "pickup",
+      "scheduledIso": "2023-07-22T04:25:00.000Z"
+    },
+    {
+      "name": "Dialysis Center",
+      "lat": 12.985,
+      "lng": 77.6225,
+      "color": "#dc2626",
+      "kind": "dropoff",
+      "scheduledIso": "2023-07-22T04:50:00.000Z"
+    },
+    {
+      "name": "Dispatch Depot",
+      "lat": 12.96,
+      "lng": 77.59,
+      "color": "#2563eb",
+      "kind": "plain",
+      "scheduledIso": null
+    }
+  ]
+}

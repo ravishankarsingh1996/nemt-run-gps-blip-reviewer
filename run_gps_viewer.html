@@ -1,0 +1,3248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Run GPS Viewer</title>
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    crossorigin=""
+  />
+
+  <style>
+    :root {
+      --bg: #f4f6f9;
+      --panel: #ffffff;
+      --border: #e2e6ec;
+      --border-strong: #cbd2dc;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --muted-2: #9aa3af;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --accent-soft: #eff4ff;
+      --custom: #7c3aed;
+      --custom-soft: #f3edff;
+      --danger: #dc2626;
+      --danger-soft: #fef2f2;
+      --ok: #059669;
+      --shadow: 0 1px 2px rgba(16,24,40,.06), 0 4px 16px rgba(16,24,40,.08);
+      --radius: 10px;
+      --field: #ffffff;
+      --hover: #f5f7fa;
+    }
+
+    html[data-theme="dark"] {
+      --bg: #0e131a;
+      --panel: #1a212b;
+      --border: #2b3440;
+      --border-strong: #3a4553;
+      --text: #e6eaf0;
+      --muted: #9aa7b8;
+      --muted-2: #6b7684;
+      --accent: #3b82f6;
+      --accent-hover: #60a5fa;
+      --accent-soft: #17293f;
+      --custom: #a78bfa;
+      --custom-soft: #2a2140;
+      --danger: #f87171;
+      --danger-soft: #3a1d1d;
+      --ok: #34d399;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.5);
+      --field: #10151d;
+      --hover: #29323f;
+    }
+
+    /* Dark surface overrides for elements with hardcoded light backgrounds */
+    html[data-theme="dark"] .upload-label,
+    html[data-theme="dark"] .btn,
+    html[data-theme="dark"] select,
+    html[data-theme="dark"] .icon-round,
+    html[data-theme="dark"] .seg-toggle button,
+    html[data-theme="dark"] .stat-card,
+    html[data-theme="dark"] .chart-card,
+    html[data-theme="dark"] .marker-item { background: var(--panel); color: var(--text); }
+
+    html[data-theme="dark"] .add-form input,
+    html[data-theme="dark"] .sched-wrap input,
+    html[data-theme="dark"] input[type="number"] { background: var(--field); color: var(--text); }
+
+    html[data-theme="dark"] .btn:hover,
+    html[data-theme="dark"] .icon-round:hover,
+    html[data-theme="dark"] .icon-btn:hover,
+    html[data-theme="dark"] .btn.ghost:hover { background: var(--hover); color: var(--text); }
+
+    html[data-theme="dark"] .timestamp-label { background: rgba(16,21,29,.88); border-color: var(--border-strong); color: #e6eaf0; }
+    html[data-theme="dark"] .custom-name { background: rgba(16,21,29,.92); }
+
+    html[data-theme="dark"] .flag-row.bad  { background:#3a1d1d; border-color:#7f1d1d; color:#fca5a5; }
+    html[data-theme="dark"] .flag-row.warn { background:#392f14; border-color:#a16207; color:#fcd34d; }
+    html[data-theme="dark"] .flag-row.ok   { background:#123028; border-color:#065f46; color:#6ee7b7; }
+    html[data-theme="dark"] .analytics-note { background:#392f14; border-color:#a16207; color:#fcd34d; }
+
+    html[data-theme="dark"] .leaflet-popup-content-wrapper,
+    html[data-theme="dark"] .leaflet-popup-tip { background: var(--panel); color: var(--text); box-shadow: var(--shadow); }
+    html[data-theme="dark"] .leaflet-tooltip { background: var(--panel); color: var(--text); border-color: var(--border-strong); }
+    html[data-theme="dark"] .leaflet-tooltip-left::before  { border-left-color: var(--panel); }
+    html[data-theme="dark"] .leaflet-tooltip-right::before { border-right-color: var(--panel); }
+    html[data-theme="dark"] .leaflet-tooltip-top::before   { border-top-color: var(--panel); }
+    html[data-theme="dark"] .leaflet-tooltip-bottom::before{ border-bottom-color: var(--panel); }
+    html[data-theme="dark"] .leaflet-bar a { background: var(--panel); color: var(--text); border-color: var(--border); }
+    html[data-theme="dark"] .leaflet-bar a:hover { background: var(--hover); }
+    /* Darken the OSM basemap tiles for dark mode (affects tiles only, not markers/paths) */
+    html[data-theme="dark"] .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9); }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, Helvetica, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    * { box-sizing: border-box; }
+
+    .app {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---------- Toolbar ---------- */
+    .toolbar {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+      align-items: center;
+      z-index: 1001;
+      box-shadow: var(--shadow);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-right: 4px;
+    }
+
+    .brand .dot {
+      width: 12px; height: 12px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--custom));
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    .title {
+      font-size: 17px;
+      font-weight: 750;
+      letter-spacing: .2px;
+    }
+
+    .divider {
+      width: 1px;
+      align-self: stretch;
+      background: var(--border);
+      margin: 2px 2px;
+    }
+
+    .upload-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      background: #fff;
+      font-size: 13.5px;
+      font-weight: 600;
+      transition: background .15s, border-color .15s;
+    }
+
+    .upload-label:hover,
+    .drop-zone.dragover {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+    }
+
+    .upload-label input[type="file"] { display: none; }
+
+    .control {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      white-space: nowrap;
+      color: #374151;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .control input[type="checkbox"] { cursor: pointer; width: 15px; height: 15px; accent-color: var(--accent); }
+
+    .control.custom input[type="checkbox"] { accent-color: var(--custom); }
+
+    select {
+      font-size: 13px;
+      padding: 5px 7px;
+      border-radius: 7px;
+      border: 1px solid var(--border-strong);
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 13px;
+      border-radius: 8px;
+      border: 1px solid var(--border-strong);
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+      transition: background .15s, border-color .15s, opacity .15s;
+      white-space: nowrap;
+    }
+    .btn:hover { background: #f5f7fa; }
+    .btn.primary { background: var(--custom); border-color: var(--custom); color: #fff; }
+    .btn.primary:hover { background: #6d28d9; }
+    .btn.accent { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn.accent:hover { background: var(--accent-hover); }
+    .btn.ghost { background: transparent; border-color: transparent; color: var(--muted); padding: 6px 8px; }
+    .btn.ghost:hover { background: #f0f2f5; color: var(--text); }
+    .btn:disabled { opacity: .45; cursor: default; }
+    .btn.small { padding: 5px 9px; font-size: 12px; }
+
+    .drop-zone {
+      flex: 1 1 220px;
+      min-width: 200px;
+      border: 1px dashed var(--border-strong);
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+      transition: background .15s, border-color .15s;
+    }
+
+    .status-row {
+      width: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 18px;
+      align-items: baseline;
+    }
+
+    .summary { font-size: 12.5px; color: #374151; }
+    .status  { font-size: 12px; color: var(--muted); }
+    .error   { color: var(--danger); font-weight: 600; }
+
+    /* ---------- Body layout ---------- */
+    .body {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+      position: relative;
+    }
+
+    #map {
+      flex: 1;
+      min-height: 360px;
+    }
+    #map.add-mode { cursor: crosshair; }
+
+    /* ---------- Sidebar ---------- */
+    .sidebar {
+      width: 320px;
+      max-width: 82vw;
+      background: var(--panel);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      transition: margin-right .22s ease;
+      z-index: 1000;
+    }
+    .sidebar.collapsed { margin-right: -320px; }
+
+    .sidebar-head {
+      padding: 13px 15px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sidebar-head h2 {
+      font-size: 14px;
+      margin: 0;
+      font-weight: 750;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .pin-chip {
+      width: 11px; height: 11px; border-radius: 50%;
+      background: var(--custom);
+      box-shadow: 0 0 0 3px var(--custom-soft);
+    }
+    .count-badge {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--custom);
+      background: var(--custom-soft);
+      border-radius: 20px;
+      padding: 2px 9px;
+    }
+
+    .sidebar-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 15px;
+    }
+
+    .field-group { margin-bottom: 14px; }
+    .field-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: var(--muted-2);
+      font-weight: 700;
+      margin-bottom: 7px;
+    }
+
+    .add-form { display: flex; flex-direction: column; gap: 8px; }
+    .add-form .row { display: flex; gap: 8px; }
+    .add-form input {
+      width: 100%;
+      font-size: 13px;
+      padding: 9px 10px;
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text);
+    }
+    .add-form input:focus {
+      outline: none;
+      border-color: var(--custom);
+      box-shadow: 0 0 0 3px var(--custom-soft);
+    }
+    .add-form input.invalid {
+      border-color: var(--danger);
+      box-shadow: 0 0 0 3px var(--danger-soft);
+    }
+
+    .swatch-row { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
+    .swatch-opt {
+      width: 22px; height: 22px; border-radius: 50%;
+      cursor: pointer; border: 2px solid #fff;
+      box-shadow: 0 0 0 1px var(--border-strong);
+      transition: transform .1s;
+    }
+    .swatch-opt:hover { transform: scale(1.12); }
+    .swatch-opt.active { transform: scale(1.12); }
+    .color-custom {
+      width: 24px; height: 24px; border-radius: 50%;
+      padding: 0; cursor: pointer; background: none;
+      border: 1px dashed var(--border-strong);
+      -webkit-appearance: none; appearance: none;
+      position: relative;
+    }
+    .color-custom::-webkit-color-swatch-wrapper { padding: 2px; }
+    .color-custom::-webkit-color-swatch { border: none; border-radius: 50%; }
+    .color-custom::-moz-color-swatch { border: none; border-radius: 50%; }
+
+    .hint {
+      font-size: 11.5px;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-top: 2px;
+    }
+    .hint b { color: #374151; }
+
+    .click-toggle {
+      width: 100%;
+      justify-content: center;
+      border-style: dashed;
+    }
+    .click-toggle.active {
+      background: var(--custom-soft);
+      border-color: var(--custom);
+      color: var(--custom);
+      border-style: solid;
+    }
+
+    .divider-line { height: 1px; background: var(--border); margin: 15px 0; }
+
+    /* ---------- Marker list ---------- */
+    .list-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .marker-item {
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 9px 10px;
+      margin-bottom: 8px;
+      background: #fff;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .marker-item:hover { border-color: var(--custom); box-shadow: var(--shadow); }
+    .marker-item .top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .marker-item .swatch {
+      width: 20px; height: 20px; border-radius: 50%;
+      flex: none;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 1px var(--border-strong);
+      padding: 0; cursor: pointer; background: none;
+      -webkit-appearance: none; appearance: none;
+    }
+    .marker-item .swatch::-webkit-color-swatch-wrapper { padding: 0; }
+    .marker-item .swatch::-webkit-color-swatch { border: none; border-radius: 50%; }
+    .marker-item .swatch::-moz-color-swatch { border: none; border-radius: 50%; }
+    .marker-item .name {
+      flex: 1;
+      font-size: 13px;
+      font-weight: 650;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: text;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      padding: 2px 4px;
+    }
+    .marker-item .name:focus {
+      outline: none;
+      border-color: var(--custom);
+      background: var(--custom-soft);
+      white-space: normal;
+    }
+    .marker-item .coords {
+      font-size: 11.5px;
+      color: var(--muted);
+      margin-top: 5px;
+      font-variant-numeric: tabular-nums;
+    }
+    .marker-item .actions {
+      display: flex;
+      gap: 4px;
+      flex: none;
+    }
+    .icon-btn {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      border-radius: 6px;
+      padding: 4px 6px;
+      font-size: 13px;
+      line-height: 1;
+      color: var(--muted);
+      transition: background .12s, color .12s;
+    }
+    .icon-btn:hover { background: #f0f2f5; color: var(--text); }
+    .icon-btn.del:hover { background: var(--danger-soft); color: var(--danger); }
+
+    .empty {
+      text-align: center;
+      color: var(--muted-2);
+      font-size: 12.5px;
+      padding: 22px 8px;
+      border: 1px dashed var(--border);
+      border-radius: 9px;
+      line-height: 1.6;
+    }
+
+    /* ---------- Sidebar toggle tab (when collapsed) ---------- */
+    .sidebar-toggle {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 1200;
+      background: var(--panel);
+      border: 1px solid var(--border-strong);
+      border-radius: 9px;
+      padding: 9px 13px;
+      font-size: 13px;
+      font-weight: 650;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+    .sidebar-toggle:hover { background: var(--accent-soft); }
+    .sidebar.collapsed ~ .sidebar-toggle { display: inline-flex; }
+
+    /* ---------- Add-mode banner ---------- */
+    .add-banner {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1200;
+      background: var(--custom);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 24px;
+      font-size: 12.5px;
+      font-weight: 600;
+      box-shadow: var(--shadow);
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+    .add-banner.show { display: inline-flex; }
+
+    /* ---------- Map labels & pins ---------- */
+    .timestamp-label {
+      font-size: 9px;
+      white-space: nowrap;
+      background: rgba(255,255,255,.9);
+      border: 1px solid var(--border-strong);
+      border-radius: 3px;
+      padding: 1px 3px;
+      line-height: 14px;
+      color: #111827;
+    }
+
+    .custom-pin { position: relative; }
+    .custom-pin svg { display: block; filter: drop-shadow(0 2px 2px rgba(0,0,0,.3)); }
+    .custom-name {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      top: -6px;
+      white-space: nowrap;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--custom);
+      background: rgba(255,255,255,.94);
+      border: 1px solid var(--custom);
+      border-radius: 4px;
+      padding: 1px 5px;
+      pointer-events: none;
+    }
+
+    /* ---------- Playback bar ---------- */
+    .playbar {
+      position: absolute;
+      left: 50%;
+      bottom: 20px;
+      transform: translateX(-50%);
+      z-index: 1200;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      width: min(94vw, 760px);
+    }
+    .playbar.disabled { opacity: .55; pointer-events: none; }
+
+    .play-btn {
+      width: 42px; height: 42px; flex: none;
+      border-radius: 50%;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-size: 17px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .15s;
+    }
+    .play-btn:hover { background: var(--accent-hover); }
+
+    .pb-grp { display: flex; align-items: center; gap: 7px; }
+
+    .seg-toggle {
+      display: inline-flex;
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .seg-toggle button {
+      border: none;
+      background: #fff;
+      padding: 7px 11px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--muted);
+    }
+    .seg-toggle button.active { background: var(--accent); color: #fff; }
+
+    .pb-label { font-size: 11px; font-weight: 700; color: var(--muted-2); text-transform: uppercase; letter-spacing: .5px; }
+
+    .speed-wrap { display: flex; align-items: center; gap: 8px; }
+    .speed-wrap input[type=range] { width: 110px; cursor: pointer; accent-color: var(--accent); }
+    .speed-val { font-size: 12.5px; font-weight: 700; color: var(--accent); min-width: 42px; font-variant-numeric: tabular-nums; }
+
+    .pb-check {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 12.5px; font-weight: 600; color: #374151;
+      cursor: pointer; user-select: none; white-space: nowrap;
+    }
+    .pb-check input { width: 15px; height: 15px; cursor: pointer; accent-color: var(--accent); }
+
+    .scrub-wrap { display: flex; align-items: center; gap: 10px; flex: 1 1 240px; min-width: 200px; }
+    .scrub-wrap input[type=range] { flex: 1; cursor: pointer; accent-color: var(--custom); }
+    .play-info { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+    .icon-round {
+      width: 34px; height: 34px; flex: none;
+      border-radius: 50%;
+      border: 1px solid var(--border-strong);
+      background: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--muted);
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .icon-round:hover { background: #f5f7fa; color: var(--text); }
+
+    .car-marker { background: none; border: none; }
+    .car-rot { transform-origin: center; transition: none; }
+    .car-rot svg { display: block; filter: drop-shadow(0 2px 3px rgba(0,0,0,.35)); }
+
+    @media (max-width: 640px) {
+      .playbar { gap: 8px 10px; padding: 8px 10px; }
+      .play-info { width: 100%; text-align: center; }
+    }
+
+    /* ---------- Analytics modal ---------- */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 39, .5);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .overlay.hidden { display: none; }
+
+    .modal {
+      background: var(--panel);
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.3);
+      width: min(920px, 96vw);
+      max-height: 92vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .modal-head {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .modal-head h2 { margin: 0; font-size: 17px; font-weight: 750; flex: 1; }
+    .modal-body { padding: 18px 20px; overflow-y: auto; }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .stat-card {
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      padding: 12px 14px;
+      background: #fff;
+    }
+    .stat-card .k {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--muted-2);
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+    .stat-card .v { font-size: 20px; font-weight: 750; color: var(--text); }
+    .stat-card .v small { font-size: 12px; font-weight: 600; color: var(--muted); }
+    .stat-card .sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+    .analytics-note {
+      font-size: 12.5px;
+      color: #92400e;
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      border-radius: 9px;
+      padding: 9px 12px;
+      margin-bottom: 16px;
+    }
+    .analytics-note:empty { display: none; }
+
+    .chart-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 14px 10px;
+      margin-bottom: 16px;
+      background: #fff;
+    }
+    .chart-title { font-size: 14px; font-weight: 700; color: var(--text); }
+    .chart-title span { font-weight: 600; color: var(--muted); font-size: 12px; }
+    .chart-hint { font-size: 11.5px; color: var(--muted); margin: 3px 0 0; }
+    .chart-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .zoom-ctrls { display: flex; gap: 4px; flex: none; align-items: center; }
+    .zoom-ctrls button {
+      border: 1px solid var(--border-strong); background: var(--field); color: var(--text);
+      border-radius: 6px; padding: 3px 9px; font-size: 14px; font-weight: 700; cursor: pointer; line-height: 1.15;
+    }
+    .zoom-ctrls button:hover { background: var(--hover); }
+    .zoom-ctrls button.reset { font-size: 11px; font-weight: 600; padding: 4px 9px; }
+    .chart-holder { position: relative; height: 240px; width: 100%; }
+
+    @media (max-width: 560px) {
+      .stat-card .v { font-size: 17px; }
+      .chart-holder { height: 190px; }
+    }
+
+    /* ---------- NEMT marker typing ---------- */
+    .sched-wrap { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #374151; }
+    .sched-wrap input { font-size: 13px; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: 8px; background: #fff; color: var(--text); }
+    #kindToggle button.active[data-kind="pickup"] { background: #059669; border-color: #059669; }
+    #kindToggle button.active[data-kind="dropoff"] { background: #dc2626; border-color: #dc2626; }
+    #kindToggle button.active[data-kind="plain"] { background: var(--custom); border-color: var(--custom); }
+
+    .type-badge {
+      flex: none;
+      font-size: 10px; font-weight: 800; letter-spacing: .3px;
+      border-radius: 5px; padding: 2px 6px; color: #fff; text-transform: uppercase;
+    }
+    .type-badge.pickup { background: #059669; }
+    .type-badge.dropoff { background: #dc2626; }
+    .type-badge.plain { background: #9ca3af; }
+    .marker-item .sched { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    .marker-item .verify { font-size: 11px; margin-top: 4px; font-weight: 600; }
+    .marker-item .verify.ok { color: var(--ok); }
+    .marker-item .verify.bad { color: var(--danger); }
+
+    /* ---------- Audit modal ---------- */
+    .audit-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 18px; }
+    .audit-flags { margin-bottom: 18px; }
+    .flag-row {
+      display: flex; gap: 8px; align-items: flex-start;
+      font-size: 12.5px; padding: 8px 11px; border-radius: 8px; margin-bottom: 6px;
+      border: 1px solid var(--border);
+    }
+    .flag-row.bad { background: var(--danger-soft); border-color: #fca5a5; color: #7f1d1d; }
+    .flag-row.warn { background: #fffbeb; border-color: #fcd34d; color: #92400e; }
+    .flag-row.ok { background: #ecfdf5; border-color: #6ee7b7; color: #065f46; }
+
+    .audit-table-wrap { overflow-x: auto; margin-bottom: 8px; }
+    table.audit-table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+    table.audit-table th, table.audit-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    table.audit-table th { color: var(--muted-2); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
+    table.audit-table td { font-variant-numeric: tabular-nums; }
+    table.audit-table tr.clickable { cursor: pointer; }
+    table.audit-table tr.clickable:hover td { background: var(--accent-soft); }
+    .cell-badge { font-size: 10px; font-weight: 800; border-radius: 4px; padding: 1px 5px; color: #fff; }
+    .cell-badge.pickup { background: #059669; }
+    .cell-badge.dropoff { background: #dc2626; }
+    .cell-ok { color: var(--ok); font-weight: 700; }
+    .cell-bad { color: var(--danger); font-weight: 700; }
+    .section-title { font-size: 13px; font-weight: 750; margin: 4px 0 10px; }
+
+    /* ---------- Loaded/deadhead legend ---------- */
+    .legs-legend {
+      position: absolute; left: 14px; bottom: 20px; z-index: 1100;
+      background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+      box-shadow: var(--shadow); padding: 8px 12px; font-size: 12px; display: none;
+    }
+    .legs-legend.show { display: block; }
+    .legs-legend .lg { display: flex; align-items: center; gap: 7px; margin: 2px 0; }
+    .legs-legend .sw { width: 18px; height: 4px; border-radius: 2px; }
+
+    .leaflet-popup-content { line-height: 1.5; color: var(--text); }
+    .leaflet-container { background: var(--bg); }
+    .popup-form input {
+      width: 160px; font-size: 13px; padding: 6px 8px;
+      border: 1px solid var(--border-strong); border-radius: 6px; margin-bottom: 6px;
+    }
+    .popup-form .btn { width: 100%; justify-content: center; }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 720px) {
+      .sidebar { position: absolute; right: 0; top: 0; bottom: 0; box-shadow: var(--shadow); }
+      .title { font-size: 15px; }
+    }
+  </style>
+</head>
+
+<body>
+<div class="app">
+  <div class="toolbar">
+    <div class="brand">
+      <span class="dot"></span>
+      <span class="title">Run GPS Viewer</span>
+    </div>
+
+    <label class="upload-label" title="Upload a run JSON, or a saved session file to restore everything">
+      📁 Upload run / session
+      <input id="fileInput" type="file" accept=".json,application/json" />
+    </label>
+
+    <div class="divider"></div>
+
+    <label class="control">
+      <input id="showPath" type="checkbox" checked />
+      Path
+    </label>
+
+    <label class="control">
+      <input id="showMarkers" type="checkbox" checked />
+      GPS markers
+    </label>
+
+    <label class="control">
+      <input id="showLabels" type="checkbox" checked />
+      Timestamp labels
+    </label>
+
+    <label class="control custom">
+      <input id="showCustom" type="checkbox" checked />
+      Custom markers
+    </label>
+
+    <div class="divider"></div>
+
+    <button id="themeToggle" class="btn" title="Toggle light / dark appearance">🌙 Dark</button>
+
+    <label class="control">
+      Timezone
+      <select id="timezone">
+        <option value="Asia/Kolkata" selected>IST</option>
+        <option value="UTC">UTC</option>
+        <option value="local">Browser local</option>
+      </select>
+    </label>
+
+    <button id="analyticsBtn" class="btn" disabled title="Gap &amp; speed analytics for the loaded run">📊 Analytics</button>
+
+    <button id="auditBtn" class="btn" disabled title="NEMT trip audit: pickup/dropoff verification, dwell, loaded miles, on-time">🩺 Trip Audit</button>
+
+    <button id="saveSession" class="btn" title="Save the loaded run + markers + settings as one file. Re-upload it later to restore everything.">💾 Save session</button>
+
+    <label class="control custom">
+      <input id="showLegs" type="checkbox" />
+      Loaded / deadhead
+    </label>
+
+    <div id="dropZone" class="drop-zone">
+      Drag &amp; drop a run JSON — or a saved session file — here, or use the Upload button.
+    </div>
+
+    <div class="status-row">
+      <div id="summary" class="summary">Upload a JSON file containing GPS blips, or add your own custom markers on the right.</div>
+      <div id="status" class="status">A blip is recognized anywhere in the JSON when it contains valid Lat, Lng and Time values.</div>
+    </div>
+  </div>
+
+  <div class="body">
+    <div id="map"></div>
+
+    <div id="addBanner" class="add-banner">
+      🎯 Click anywhere on the map to drop a marker · <span style="text-decoration:underline;cursor:pointer" id="exitAdd">Done</span>
+    </div>
+
+    <div id="playbar" class="playbar disabled">
+      <button id="playBtn" class="play-btn" title="Play / Pause">▶</button>
+      <button id="resetBtn" class="icon-round" title="Reset to start">⟲</button>
+
+      <div class="pb-grp">
+        <span class="pb-label">Direction</span>
+        <div class="seg-toggle" id="dirToggle">
+          <button data-dir="1" class="active" title="First blip → last">Start → End</button>
+          <button data-dir="-1" title="Last blip → first">End → Start</button>
+        </div>
+      </div>
+
+      <div class="pb-grp speed-wrap">
+        <span class="pb-label">Speed</span>
+        <input id="speed" type="range" min="0" max="100" value="50" />
+        <span id="speedVal" class="speed-val">×45</span>
+      </div>
+
+      <label class="pb-check" title="Keep the car centered while it moves">
+        <input id="followCar" type="checkbox" checked /> Follow
+      </label>
+
+      <div class="scrub-wrap">
+        <input id="scrub" type="range" min="0" max="1000" value="0" />
+      </div>
+
+      <div id="playInfo" class="play-info">—</div>
+    </div>
+
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-head">
+        <h2><span class="pin-chip"></span> Custom markers <span id="countBadge" class="count-badge">0</span></h2>
+        <button id="collapseBtn" class="btn ghost" title="Hide panel">✕</button>
+      </div>
+
+      <div class="sidebar-scroll">
+        <div class="field-group">
+          <div class="field-label">Add by clicking</div>
+          <button id="clickToggle" class="btn click-toggle">🎯 Click map to add marker</button>
+          <div class="hint">Turn this on, then click any spot on the map. You can name it right there or later in the list.</div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-label">Add a stop / marker</div>
+          <form id="addForm" class="add-form" autocomplete="off">
+            <div class="seg-toggle" id="kindToggle" style="width:100%">
+              <button type="button" data-kind="pickup" class="active" style="flex:1">📍 Pickup</button>
+              <button type="button" data-kind="dropoff" style="flex:1">🏁 Dropoff</button>
+              <button type="button" data-kind="plain" style="flex:1">• Plain</button>
+            </div>
+            <input id="mName" type="text" placeholder="Name (e.g. Dialysis Center, Patient home)" />
+            <div class="row">
+              <input id="mLat" type="text" inputmode="decimal" placeholder="Latitude" />
+              <input id="mLng" type="text" inputmode="decimal" placeholder="Longitude" />
+            </div>
+            <label id="schedWrap" class="sched-wrap">
+              <span>Scheduled time <span style="color:var(--muted-2)">(optional)</span></span>
+              <input id="mSched" type="datetime-local" />
+            </label>
+            <div id="colorWrap">
+              <div class="field-label" style="margin-bottom:6px">Color</div>
+              <div id="swatchRow" class="swatch-row"></div>
+            </div>
+            <button type="submit" class="btn primary" style="justify-content:center">➕ Add stop</button>
+            <div class="hint">Pickups/dropoffs power the trip audit (verification, dwell, loaded miles). Tip: paste "<b>lat, lng</b>" into the Latitude box.</div>
+          </form>
+        </div>
+
+        <div class="field-group">
+          <label class="sched-wrap" style="align-items:center">
+            <span>Geofence radius <span style="color:var(--muted-2)">for pickup/dropoff verification</span></span>
+            <span style="display:flex;align-items:center;gap:8px">
+              <input id="geofence" type="range" min="20" max="300" step="5" value="60" style="flex:1;accent-color:var(--accent)" />
+              <span id="geofenceVal" style="font-weight:700;font-size:12px;min-width:46px">60 m</span>
+            </span>
+          </label>
+          <label class="sched-wrap" style="margin-top:8px">
+            <span>Speed limit for safety flags</span>
+            <span style="display:flex;align-items:center;gap:8px">
+              <input id="speedLimit" type="number" min="10" max="200" step="5" value="80" style="width:80px;font-size:13px;padding:7px 9px;border:1px solid var(--border-strong);border-radius:8px" />
+              <span style="font-size:12px;color:var(--muted)">km/h</span>
+            </span>
+          </label>
+        </div>
+
+        <div class="divider-line"></div>
+
+        <div class="list-head">
+          <div class="field-label" style="margin:0">Your markers</div>
+          <div style="display:flex;gap:4px">
+            <button id="exportBtn" class="btn small" title="Download markers as JSON">⬇ Export</button>
+            <label class="btn small" title="Load markers from a JSON file" style="cursor:pointer">
+              ⬆ Import
+              <input id="importInput" type="file" accept=".json,application/json" style="display:none" />
+            </label>
+            <button id="clearBtn" class="btn small" title="Remove all custom markers">🗑 Clear</button>
+          </div>
+        </div>
+
+        <div id="markerList"></div>
+      </div>
+    </aside>
+
+    <button id="showSidebar" class="sidebar-toggle"><span class="pin-chip"></span> Markers</button>
+
+    <div id="legsLegend" class="legs-legend">
+      <div class="lg"><span class="sw" style="background:#7c3aed"></span> Loaded (passenger aboard)</div>
+      <div class="lg"><span class="sw" style="background:#9ca3af"></span> Deadhead (empty)</div>
+    </div>
+  </div>
+</div>
+
+<div id="analyticsOverlay" class="overlay hidden">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>📊 Trip Analytics</h2>
+      <button id="exportMd" class="btn small accent" title="Download a Markdown report with an analysis brief + embedded data, ready to hand to Claude alongside your codebase">⬇ Report for Claude (.md)</button>
+      <button id="exportJson" class="btn small" title="Download the raw analysis data as JSON">⬇ Data (.json)</button>
+      <button id="analyticsClose" class="icon-round" title="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="statGrid" class="stat-grid"></div>
+      <div id="analyticsNote" class="analytics-note"></div>
+
+      <div class="chart-card">
+        <div class="chart-head">
+          <div>
+            <div class="chart-title">Time gap between consecutive blips <span>(seconds)</span></div>
+            <div class="chart-hint">Tall bars mean the device paused or stopped reporting. Scroll or pinch to zoom the X-axis, drag to pan; the Y-axis stays fixed. Click a bar to jump to that blip.</div>
+          </div>
+          <div class="zoom-ctrls" data-chart="time">
+            <button type="button" data-act="out" title="Zoom out (X)">−</button>
+            <button type="button" data-act="in" title="Zoom in (X)">+</button>
+            <button type="button" data-act="reset" class="reset" title="Reset zoom">Reset</button>
+          </div>
+        </div>
+        <div class="chart-holder"><canvas id="chartTime"></canvas></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-head">
+          <div>
+            <div class="chart-title">Distance between consecutive blips <span>(meters)</span></div>
+            <div class="chart-hint">How far the vehicle moved between each pair of blips. Scroll/pinch to zoom X, drag to pan. Click a bar to jump to that blip.</div>
+          </div>
+          <div class="zoom-ctrls" data-chart="dist">
+            <button type="button" data-act="out" title="Zoom out (X)">−</button>
+            <button type="button" data-act="in" title="Zoom in (X)">+</button>
+            <button type="button" data-act="reset" class="reset" title="Reset zoom">Reset</button>
+          </div>
+        </div>
+        <div class="chart-holder"><canvas id="chartDist"></canvas></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-head">
+          <div>
+            <div class="chart-title">Implied speed per segment <span>(km/h)</span></div>
+            <div class="chart-hint">Where the driver sped up or slowed down. Scroll/pinch to zoom X, drag to pan. Click a point to jump to that blip.</div>
+          </div>
+          <div class="zoom-ctrls" data-chart="speed">
+            <button type="button" data-act="out" title="Zoom out (X)">−</button>
+            <button type="button" data-act="in" title="Zoom in (X)">+</button>
+            <button type="button" data-act="reset" class="reset" title="Reset zoom">Reset</button>
+          </div>
+        </div>
+        <div class="chart-holder"><canvas id="chartSpeed"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="auditOverlay" class="overlay hidden">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>🩺 NEMT Trip Audit</h2>
+      <button id="auditReportMd" class="btn small accent" title="Download a NEMT compliance report (Markdown)">⬇ Compliance report (.md)</button>
+      <button id="auditReportJson" class="btn small" title="Download the audit data as JSON">⬇ Data (.json)</button>
+      <button id="auditPrint" class="btn small" title="Open a printable view (save as PDF from your browser)">🖨 Print</button>
+      <button id="auditClose" class="icon-round" title="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="auditEmpty" class="analytics-note" style="display:none"></div>
+      <div id="auditKpis" class="audit-kpis"></div>
+
+      <div class="section-title">Compliance flags</div>
+      <div id="auditFlags" class="audit-flags"></div>
+
+      <div class="section-title">Stops (pickups &amp; dropoffs)</div>
+      <div class="chart-hint" style="margin-bottom:10px">Ordered by the time the vehicle reached each stop. Click a row to jump to it on the map.</div>
+      <div class="audit-table-wrap">
+        <table class="audit-table" id="auditStops"></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script
+  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  crossorigin="">
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+
+  var fileInput   = $("fileInput");
+  var showPath    = $("showPath");
+  var showMarkers = $("showMarkers");
+  var showLabels  = $("showLabels");
+  var showCustom  = $("showCustom");
+  var timezone    = $("timezone");
+  var summary     = $("summary");
+  var status      = $("status");
+  var dropZone    = $("dropZone");
+
+  var sidebar     = $("sidebar");
+  var collapseBtn = $("collapseBtn");
+  var showSidebar = $("showSidebar");
+  var clickToggle = $("clickToggle");
+  var addForm     = $("addForm");
+  var mName       = $("mName");
+  var mLat        = $("mLat");
+  var mLng        = $("mLng");
+  var markerList  = $("markerList");
+  var countBadge  = $("countBadge");
+  var clearBtn    = $("clearBtn");
+  var exportBtn   = $("exportBtn");
+  var importInput = $("importInput");
+  var addBanner   = $("addBanner");
+  var exitAdd     = $("exitAdd");
+  var mapEl       = $("map");
+
+  if (typeof L === "undefined") {
+    status.className = "status error";
+    status.textContent =
+      "The map library could not load. Check your internet connection and reopen this page.";
+    return;
+  }
+
+  var map = L.map("map").setView([20.5937, 78.9629], 5);
+
+  // Single, always-available OpenStreetMap basemap for both light and dark.
+  // Dark mode darkens these tiles with a CSS filter on the tile pane, so the
+  // map never depends on a second tile provider that could be blocked/offline.
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 20,
+    attribution: "&copy; OpenStreetMap contributors"
+  }).addTo(map);
+
+  function setBaseTiles() { /* tile theming is handled by CSS; kept for call stability */ }
+
+  var pathLayer     = L.layerGroup();
+  var markerLayer   = L.layerGroup();
+  var labelLayer    = L.layerGroup();
+  var endpointLayer = L.layerGroup();
+  var customLayer   = L.layerGroup().addTo(map);
+  var carLayer      = L.layerGroup().addTo(map);
+
+  var currentPoints = [];
+  var currentFilename = "";
+  var pointMarkers = [];
+
+  var playbar  = $("playbar");
+  var playBtn  = $("playBtn");
+  var resetBtn = $("resetBtn");
+  var dirToggle = $("dirToggle");
+  var speedInput = $("speed");
+  var speedVal = $("speedVal");
+  var scrub    = $("scrub");
+  var playInfo = $("playInfo");
+  var followCar = $("followCar");
+
+  var analyticsBtn = $("analyticsBtn");
+  var auditBtn = $("auditBtn");
+  var analyticsOverlay = $("analyticsOverlay");
+  var analyticsClose = $("analyticsClose");
+  var statGrid = $("statGrid");
+  var analyticsNote = $("analyticsNote");
+  var exportMd = $("exportMd");
+  var exportJson = $("exportJson");
+
+  /* ============ Existing GPS-blip logic (preserved) ============ */
+
+  function clearRunLayers() {
+    pathLayer.clearLayers();
+    markerLayer.clearLayers();
+    labelLayer.clearLayers();
+    endpointLayer.clearLayers();
+
+    [pathLayer, markerLayer, labelLayer, endpointLayer].forEach(function (layer) {
+      if (map.hasLayer(layer)) map.removeLayer(layer);
+    });
+
+    stopAnim();
+    carLayer.clearLayers();
+    carMarker = null;
+
+    if (typeof legsLayer !== "undefined" && legsLayer) {
+      legsLayer.clearLayers();
+      if (map.hasLayer(legsLayer)) map.removeLayer(legsLayer);
+    }
+    if (typeof legsLegend !== "undefined" && legsLegend) legsLegend.classList.remove("show");
+  }
+
+  function firstDefined(obj, names) {
+    for (var i = 0; i < names.length; i++) {
+      var name = names[i];
+      if (Object.prototype.hasOwnProperty.call(obj, name) && obj[name] !== null && obj[name] !== "") {
+        return obj[name];
+      }
+    }
+    return undefined;
+  }
+
+  function normalizeTimestamp(raw) {
+    var value = Number(raw);
+    if (!Number.isFinite(value)) return null;
+    if (value > 0 && value < 100000000000) value *= 1000;
+    var date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : value;
+  }
+
+  function objectToPoint(value, path) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+
+    var rawLat = firstDefined(value, ["Lat", "lat", "LAT", "latitude", "Latitude"]);
+    var rawLng = firstDefined(value, [
+      "Lng", "lng", "LNG", "Lon", "lon", "Long", "long", "longitude", "Longitude"
+    ]);
+    var rawTime = firstDefined(value, [
+      "Time", "time", "TIME", "timestamp", "Timestamp", "timeStamp", "createdAt", "CreatedAt"
+    ]);
+
+    if (rawLat === undefined || rawLng === undefined || rawTime === undefined) return null;
+
+    var lat = Number(rawLat);
+    var lng = Number(rawLng);
+    var time = normalizeTimestamp(rawTime);
+
+    if (
+      !Number.isFinite(lat) || !Number.isFinite(lng) || time === null ||
+      lat < -90 || lat > 90 || lng < -180 || lng > 180
+    ) return null;
+
+    var statusId = firstDefined(value, ["StatusId", "statusId", "status"]);
+    var bookingId = null;
+
+    if (Array.isArray(value.Bookings) && value.Bookings.length) {
+      statusId = (statusId !== undefined && statusId !== null)
+        ? statusId
+        : (value.Bookings[0] && (value.Bookings[0].StatusId != null ? value.Bookings[0].StatusId : value.Bookings[0].statusId)) || null;
+      bookingId = (value.Bookings[0] && (value.Bookings[0].Id != null ? value.Bookings[0].Id : value.Bookings[0].id)) || null;
+    }
+
+    if (bookingId === null && Array.isArray(value.BookingIds) && value.BookingIds.length) {
+      bookingId = value.BookingIds[0];
+    }
+
+    return {
+      id: path,
+      lat: lat, lng: lng, time: time,
+      accuracy: firstDefined(value, ["Accuracy", "accuracy"]),
+      speed: firstDefined(value, ["Speed", "speed"]),
+      distance: firstDefined(value, ["Distance", "distance"]),
+      bearing: firstDefined(value, ["Bearing", "bearing"]),
+      statusId: (statusId != null ? statusId : null),
+      bookingId: (bookingId != null ? bookingId : null)
+    };
+  }
+
+  function extractPoints(json) {
+    var points = [];
+    var seenObjects = new WeakSet();
+
+    function walk(value, path) {
+      if (!value || typeof value !== "object") return;
+      if (seenObjects.has(value)) return;
+      seenObjects.add(value);
+
+      var point = objectToPoint(value, path);
+      if (point) points.push(point);
+
+      if (Array.isArray(value)) {
+        value.forEach(function (item, index) { walk(item, path + "[" + index + "]"); });
+      } else {
+        Object.keys(value).forEach(function (key) {
+          walk(value[key], path ? path + "." + key : key);
+        });
+      }
+    }
+
+    walk(json, "root");
+
+    var unique = [];
+    var seen = new Set();
+    for (var i = 0; i < points.length; i++) {
+      var p = points[i];
+      var key = p.lat + "|" + p.lng + "|" + p.time + "|" + (p.statusId == null ? "" : p.statusId) + "|" + (p.bookingId == null ? "" : p.bookingId);
+      if (!seen.has(key)) { seen.add(key); unique.push(p); }
+    }
+
+    unique.sort(function (a, b) { return a.time - b.time; });
+    return unique;
+  }
+
+  function getTimeZoneOption() {
+    if (timezone.value === "local") return undefined;
+    return timezone.value;
+  }
+
+  function formatDateTime(ms) {
+    var options = {
+      year: "numeric", month: "short", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true
+    };
+    var tz = getTimeZoneOption();
+    if (tz) options.timeZone = tz;
+    return new Intl.DateTimeFormat("en-US", options).format(new Date(ms));
+  }
+
+  function formatShortTime(ms) {
+    var options = { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true };
+    var tz = getTimeZoneOption();
+    if (tz) options.timeZone = tz;
+    return new Intl.DateTimeFormat("en-US", options).format(new Date(ms));
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .split("&").join("&amp;")
+      .split("<").join("&lt;")
+      .split(">").join("&gt;")
+      .split('"').join("&quot;")
+      .split("'").join("&#039;");
+  }
+
+  function addVisibleRunLayers() {
+    if (showPath.checked) pathLayer.addTo(map);
+    if (showMarkers.checked) markerLayer.addTo(map);
+    if (showLabels.checked) labelLayer.addTo(map);
+    endpointLayer.addTo(map);
+  }
+
+  function drawRun(fit) {
+    clearRunLayers();
+    pointMarkers = [];
+
+    if (!currentPoints.length) {
+      updateSummary();
+      if (analyticsBtn) analyticsBtn.disabled = true;
+      if (auditBtn) auditBtn.disabled = true;
+      return;
+    }
+
+    var coords = currentPoints.map(function (p) { return [p.lat, p.lng]; });
+
+    L.polyline(coords, { weight: 4, opacity: 0.88 }).addTo(pathLayer);
+
+    currentPoints.forEach(function (p, index) {
+      var details = [
+        "<b>Point:</b> " + (index + 1) + " of " + currentPoints.length,
+        "<b>Time:</b> " + escapeHtml(formatDateTime(p.time)),
+        "<b>Epoch:</b> " + p.time,
+        "<b>Lat/Lng:</b> " + p.lat.toFixed(7) + ", " + p.lng.toFixed(7)
+      ];
+
+      if (p.bookingId !== null) details.push("<b>Booking ID:</b> " + escapeHtml(p.bookingId));
+      if (p.statusId !== null) details.push("<b>Status ID:</b> " + escapeHtml(p.statusId));
+      if (p.accuracy !== undefined) details.push("<b>Accuracy:</b> " + escapeHtml(p.accuracy));
+      if (p.speed !== undefined) details.push("<b>Speed:</b> " + escapeHtml(p.speed));
+      if (p.distance !== undefined) details.push("<b>Distance:</b> " + escapeHtml(p.distance));
+      if (p.bearing !== undefined) details.push("<b>Bearing:</b> " + escapeHtml(p.bearing));
+      details.push("<b>JSON location:</b> " + escapeHtml(p.id));
+
+      pointMarkers[index] = L.circleMarker([p.lat, p.lng], {
+        radius: index === 0 || index === currentPoints.length - 1 ? 7 : 4,
+        weight: 1,
+        fillOpacity: 0.85
+      })
+        .bindTooltip((index + 1) + ". " + formatDateTime(p.time))
+        .bindPopup(details.join("<br>"))
+        .addTo(markerLayer);
+
+      L.marker([p.lat, p.lng], {
+        interactive: false,
+        icon: L.divIcon({
+          className: "",
+          iconAnchor: [-5, 7],
+          html: '<div class="timestamp-label">' + escapeHtml(formatShortTime(p.time)) + "</div>"
+        })
+      }).addTo(labelLayer);
+    });
+
+    var start = currentPoints[0];
+    var end = currentPoints[currentPoints.length - 1];
+
+    L.marker([start.lat, start.lng])
+      .bindTooltip("START — " + formatDateTime(start.time))
+      .bindPopup("<b>START</b><br>" + escapeHtml(formatDateTime(start.time)) +
+        "<br>" + start.lat.toFixed(7) + ", " + start.lng.toFixed(7))
+      .addTo(endpointLayer);
+
+    L.marker([end.lat, end.lng])
+      .bindTooltip("END — " + formatDateTime(end.time))
+      .bindPopup("<b>END</b><br>" + escapeHtml(formatDateTime(end.time)) +
+        "<br>" + end.lat.toFixed(7) + ", " + end.lng.toFixed(7))
+      .addTo(endpointLayer);
+
+    addVisibleRunLayers();
+
+    if (fit) fitEverything();
+
+    updateSummary();
+    setupAnimation();
+    if (analyticsBtn) analyticsBtn.disabled = false;
+    if (auditBtn) auditBtn.disabled = false;
+    refreshLegs();
+  }
+
+  function updateSummary() {
+    if (!currentPoints.length) {
+      summary.innerHTML = customMarkers.length
+        ? "<b>" + customMarkers.length + "</b> custom marker" + (customMarkers.length === 1 ? "" : "s") + " placed. Upload a run JSON to plot a track alongside them."
+        : "Upload a JSON file containing GPS blips, or add your own custom markers on the right.";
+      return;
+    }
+    var start = currentPoints[0];
+    var end = currentPoints[currentPoints.length - 1];
+    var durationMs = Math.max(0, end.time - start.time);
+    var totalSeconds = Math.round(durationMs / 1000);
+    var hours = Math.floor(totalSeconds / 3600);
+    var minutes = Math.floor((totalSeconds % 3600) / 60);
+    var seconds = totalSeconds % 60;
+    var duration = (hours ? hours + "h " : "") + (minutes ? minutes + "m " : "") + seconds + "s";
+
+    summary.innerHTML =
+      "<b>" + escapeHtml(currentFilename) + "</b> &nbsp;|&nbsp; " +
+      "<b>" + currentPoints.length + "</b> blips &nbsp;|&nbsp; " +
+      escapeHtml(formatDateTime(start.time)) + " → " + escapeHtml(formatDateTime(end.time)) +
+      " &nbsp;|&nbsp; Duration: " + duration +
+      (customMarkers.length ? " &nbsp;|&nbsp; <b>" + customMarkers.length + "</b> custom" : "");
+  }
+
+  function fitEverything() {
+    var all = currentPoints.map(function (p) { return [p.lat, p.lng]; })
+      .concat(customMarkers.map(function (m) { return [m.lat, m.lng]; }));
+
+    if (!all.length) return;
+    if (all.length === 1) { map.setView(all[0], 16); return; }
+    var bounds = L.latLngBounds(all);
+    if (bounds.isValid()) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
+  }
+
+  function loadFile(file) {
+    status.className = "status";
+    status.textContent = "Reading and validating JSON...";
+
+    if (!file) return;
+
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var text = String(reader.result || "");
+        if (!text.trim()) throw new Error("The selected file is empty.");
+        var json = JSON.parse(text);
+
+        // Saved session bundle? Restore everything instead of parsing as a run.
+        if (json && json.__type === SESSION_SIG) {
+          restoreSession(json, file.name);
+          return;
+        }
+
+        var points = extractPoints(json);
+        if (!points.length) {
+          throw new Error("No valid GPS blips were found. Each blip must contain latitude, longitude and timestamp fields.");
+        }
+        currentPoints = points;
+        currentFilename = file.name;
+        drawRun(true);
+        status.className = "status";
+        status.textContent = "Successfully loaded " + points.length + " GPS blips. The parser searches recursively through the complete JSON structure.";
+      } catch (err) {
+        clearRunLayers();
+        currentPoints = [];
+        currentFilename = "";
+        pointMarkers = [];
+        playbar.classList.add("disabled");
+        playInfo.textContent = "—";
+        analyticsBtn.disabled = true;
+        auditBtn.disabled = true;
+        closeAnalytics();
+        if (typeof closeAudit === "function") closeAudit();
+        status.className = "status error";
+        status.textContent = (err && err.message) ? err.message : "Invalid JSON file.";
+        updateSummary();
+      } finally {
+        fileInput.value = "";
+      }
+    };
+    reader.onerror = function () {
+      status.className = "status error";
+      status.textContent = "Could not read the file.";
+      fileInput.value = "";
+    };
+    reader.readAsText(file);
+  }
+
+  fileInput.addEventListener("change", function () {
+    var file = fileInput.files && fileInput.files[0];
+    if (file) loadFile(file);
+  });
+
+  dropZone.addEventListener("dragover", function (event) {
+    event.preventDefault();
+    dropZone.classList.add("dragover");
+  });
+  dropZone.addEventListener("dragleave", function () {
+    dropZone.classList.remove("dragover");
+  });
+  dropZone.addEventListener("drop", function (event) {
+    event.preventDefault();
+    dropZone.classList.remove("dragover");
+    var file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+    if (file) loadFile(file);
+  });
+
+  showPath.addEventListener("change", function () {
+    if (showPath.checked) pathLayer.addTo(map);
+    else if (map.hasLayer(pathLayer)) map.removeLayer(pathLayer);
+  });
+  showMarkers.addEventListener("change", function () {
+    if (showMarkers.checked) markerLayer.addTo(map);
+    else if (map.hasLayer(markerLayer)) map.removeLayer(markerLayer);
+  });
+  showLabels.addEventListener("change", function () {
+    if (showLabels.checked) labelLayer.addTo(map);
+    else if (map.hasLayer(labelLayer)) map.removeLayer(labelLayer);
+  });
+  showCustom.addEventListener("change", function () {
+    if (showCustom.checked) { customLayer.addTo(map); geofenceLayer.addTo(map); }
+    else {
+      if (map.hasLayer(customLayer)) map.removeLayer(customLayer);
+      if (map.hasLayer(geofenceLayer)) map.removeLayer(geofenceLayer);
+    }
+    drawGeofences();
+  });
+
+  timezone.addEventListener("change", function () {
+    if (currentPoints.length) drawRun(false);
+  });
+
+  window.addEventListener("resize", function () { map.invalidateSize(); });
+
+  /* ============ Custom markers (new) ============ */
+
+  var customMarkers = [];   // { id, name, lat, lng, color, kind, schedMs, marker }
+  var nextId = 1;
+  var addMode = false;
+
+  var DEFAULT_COLOR = "#7c3aed";
+  var PICKUP_COLOR = "#059669";
+  var DROPOFF_COLOR = "#dc2626";
+  var PRESET_COLORS = [
+    "#7c3aed", "#2563eb", "#059669", "#dc2626",
+    "#ea580c", "#db2777", "#0d9488", "#eab308", "#111827"
+  ];
+  var currentColor = DEFAULT_COLOR;
+  var currentKind = "pickup";
+
+  var kindToggle = $("kindToggle");
+  var mSched = $("mSched");
+  var schedWrap = $("schedWrap");
+  var colorWrap = $("colorWrap");
+  var geofence = $("geofence");
+  var geofenceVal = $("geofenceVal");
+  var geofenceLayer = L.layerGroup().addTo(map);
+  var geofenceRadius = 60;
+
+  function kindColor(kind) {
+    return kind === "pickup" ? PICKUP_COLOR : kind === "dropoff" ? DROPOFF_COLOR : DEFAULT_COLOR;
+  }
+  function kindLetter(kind) {
+    return kind === "pickup" ? "P" : kind === "dropoff" ? "D" : "";
+  }
+
+  function pinIcon(name, color, kind) {
+    color = color || DEFAULT_COLOR;
+    var label = name
+      ? '<div class="custom-name" style="color:' + color + ';border-color:' + color + '">' + escapeHtml(name) + "</div>"
+      : "";
+    var letter = kindLetter(kind);
+    var inner = letter
+      ? '<text x="13" y="17" text-anchor="middle" font-size="10" font-weight="bold" fill="' + color + '" font-family="Arial">' + letter + '</text>'
+      : '';
+    var svg =
+      '<svg width="26" height="34" viewBox="0 0 26 34" xmlns="http://www.w3.org/2000/svg">' +
+      '<path d="M13 0C5.82 0 0 5.82 0 13c0 9.2 13 21 13 21s13-11.8 13-21C26 5.82 20.18 0 13 0z" fill="' + color + '"/>' +
+      '<circle cx="13" cy="13" r="6" fill="#ffffff"/>' + inner + '</svg>';
+    return L.divIcon({
+      className: "custom-pin",
+      html: label + svg,
+      iconSize: [26, 34],
+      iconAnchor: [13, 34],
+      popupAnchor: [0, -30]
+    });
+  }
+
+  function buildPopupHtml(m) {
+    var typeLabel = m.kind === "pickup" ? "PICKUP" : m.kind === "dropoff" ? "DROPOFF" : "";
+    return '<div style="min-width:150px">' +
+      (typeLabel ? '<div style="font-size:10px;font-weight:800;color:' + (m.color || DEFAULT_COLOR) + '">' + typeLabel + '</div>' : '') +
+      '<div style="font-weight:700;font-size:13px;margin-bottom:4px;color:' + (m.color || DEFAULT_COLOR) + '">' + escapeHtml(m.name || "Unnamed marker") + "</div>" +
+      '<div style="font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums">' +
+      m.lat.toFixed(6) + ", " + m.lng.toFixed(6) + "</div>" +
+      (m.schedMs ? '<div style="font-size:11px;color:#6b7280;margin-top:3px">Scheduled: ' + escapeHtml(formatDateTime(m.schedMs)) + '</div>' : '') +
+      "</div>";
+  }
+
+  function drawGeofences() {
+    geofenceLayer.clearLayers();
+    if (!showCustom.checked) return;
+    customMarkers.forEach(function (m) {
+      if (m.kind === "pickup" || m.kind === "dropoff") {
+        L.circle([m.lat, m.lng], {
+          radius: geofenceRadius,
+          color: m.color, weight: 1, opacity: 0.6,
+          fillColor: m.color, fillOpacity: 0.08, interactive: false
+        }).addTo(geofenceLayer);
+      }
+    });
+  }
+
+  function addCustomMarker(lat, lng, name, opts) {
+    opts = opts || {};
+    var kind = opts.kind || "plain";
+    var color = (kind === "plain") ? (opts.color || currentColor) : kindColor(kind);
+    var m = {
+      id: nextId++, name: name || ((kind === "plain" ? "Marker " : (kind === "pickup" ? "Pickup " : "Dropoff ")) + nextId),
+      lat: lat, lng: lng, color: color, kind: kind,
+      schedMs: (opts.schedMs != null ? opts.schedMs : null),
+      marker: null
+    };
+
+    var marker = L.marker([lat, lng], { icon: pinIcon(m.name, m.color, m.kind), draggable: true });
+    marker.bindPopup(buildPopupHtml(m));
+    marker.on("dragend", function () {
+      var ll = marker.getLatLng();
+      m.lat = ll.lat; m.lng = ll.lng;
+      marker.setPopupContent(buildPopupHtml(m));
+      renderList();
+      updateSummary();
+      drawGeofences();
+      refreshLegs();
+    });
+    marker.addTo(customLayer);
+    m.marker = marker;
+    customMarkers.push(m);
+
+    renderList();
+    updateSummary();
+    drawGeofences();
+    refreshLegs();
+
+    if (opts.open) {
+      map.setView([lat, lng], Math.max(map.getZoom(), 15));
+      setTimeout(function () { marker.openPopup(); }, 60);
+      // focus the matching name field for quick rename
+      setTimeout(function () {
+        var el = document.querySelector('[data-name-for="' + m.id + '"]');
+        if (el) { el.focus(); document.getSelection().selectAllChildren(el); }
+      }, 120);
+    }
+    return m;
+  }
+
+  function removeCustomMarker(id) {
+    for (var i = 0; i < customMarkers.length; i++) {
+      if (customMarkers[i].id === id) {
+        customLayer.removeLayer(customMarkers[i].marker);
+        customMarkers.splice(i, 1);
+        break;
+      }
+    }
+    renderList();
+    updateSummary();
+    drawGeofences();
+    refreshLegs();
+  }
+
+  function renameCustomMarker(id, name) {
+    for (var i = 0; i < customMarkers.length; i++) {
+      if (customMarkers[i].id === id) {
+        var m = customMarkers[i];
+        m.name = name;
+        m.marker.setIcon(pinIcon(name, m.color, m.kind));
+        m.marker.setPopupContent(buildPopupHtml(m));
+        break;
+      }
+    }
+    updateSummary();
+  }
+
+  function recolorCustomMarker(id, color) {
+    for (var i = 0; i < customMarkers.length; i++) {
+      if (customMarkers[i].id === id) {
+        var m = customMarkers[i];
+        m.color = color;
+        m.marker.setIcon(pinIcon(m.name, color, m.kind));
+        m.marker.setPopupContent(buildPopupHtml(m));
+        break;
+      }
+    }
+  }
+
+  function renderList() {
+    countBadge.textContent = customMarkers.length;
+
+    if (!customMarkers.length) {
+      markerList.innerHTML = '<div class="empty">No custom markers yet.<br>Click the map or add coordinates above.</div>';
+      return;
+    }
+
+    markerList.innerHTML = "";
+    customMarkers.forEach(function (m) {
+      var item = document.createElement("div");
+      item.className = "marker-item";
+
+      var top = document.createElement("div");
+      top.className = "top";
+
+      var swatch;
+      if (m.kind === "pickup" || m.kind === "dropoff") {
+        swatch = document.createElement("span");
+        swatch.className = "type-badge " + m.kind;
+        swatch.textContent = m.kind === "pickup" ? "P" : "D";
+        swatch.title = m.kind;
+      } else {
+        swatch = document.createElement("input");
+        swatch.type = "color";
+        swatch.className = "swatch";
+        swatch.value = m.color || DEFAULT_COLOR;
+        swatch.title = "Change this marker's color";
+        swatch.addEventListener("input", function () {
+          recolorCustomMarker(m.id, swatch.value);
+        });
+      }
+
+      var name = document.createElement("div");
+      name.className = "name";
+      name.contentEditable = "true";
+      name.spellcheck = false;
+      name.textContent = m.name;
+      name.setAttribute("data-name-for", m.id);
+      name.title = "Click to rename";
+      name.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); name.blur(); }
+      });
+      name.addEventListener("blur", function () {
+        var v = name.textContent.trim() || ("Marker " + m.id);
+        name.textContent = v;
+        renameCustomMarker(m.id, v);
+      });
+
+      var actions = document.createElement("div");
+      actions.className = "actions";
+
+      var locate = document.createElement("button");
+      locate.className = "icon-btn";
+      locate.title = "Zoom to marker";
+      locate.innerHTML = "🎯";
+      locate.addEventListener("click", function () {
+        map.setView([m.lat, m.lng], Math.max(map.getZoom(), 16));
+        m.marker.openPopup();
+      });
+
+      var del = document.createElement("button");
+      del.className = "icon-btn del";
+      del.title = "Delete marker";
+      del.innerHTML = "🗑";
+      del.addEventListener("click", function () { removeCustomMarker(m.id); });
+
+      actions.appendChild(locate);
+      actions.appendChild(del);
+
+      top.appendChild(swatch);
+      top.appendChild(name);
+      top.appendChild(actions);
+
+      var coords = document.createElement("div");
+      coords.className = "coords";
+      coords.textContent = m.lat.toFixed(6) + ", " + m.lng.toFixed(6);
+
+      item.appendChild(top);
+      item.appendChild(coords);
+
+      if (m.schedMs) {
+        var sched = document.createElement("div");
+        sched.className = "sched";
+        sched.textContent = "🕐 Scheduled: " + formatDateTime(m.schedMs);
+        item.appendChild(sched);
+      }
+
+      markerList.appendChild(item);
+    });
+  }
+
+  // Color palette for new markers
+  var swatchRow = $("swatchRow");
+
+  function buildSwatchRow() {
+    swatchRow.innerHTML = "";
+    PRESET_COLORS.forEach(function (c) {
+      var s = document.createElement("span");
+      s.className = "swatch-opt" + (c === currentColor ? " active" : "");
+      s.style.background = c;
+      s.setAttribute("data-color", c);
+      s.title = c;
+      s.addEventListener("click", function () { setCurrentColor(c); });
+      swatchRow.appendChild(s);
+    });
+    var custom = document.createElement("input");
+    custom.type = "color";
+    custom.className = "color-custom";
+    custom.value = currentColor;
+    custom.title = "Pick a custom color";
+    custom.addEventListener("input", function () { setCurrentColor(custom.value, true); });
+    swatchRow.appendChild(custom);
+  }
+
+  function setCurrentColor(color, fromCustom) {
+    currentColor = color;
+    var opts = swatchRow.querySelectorAll(".swatch-opt");
+    for (var i = 0; i < opts.length; i++) {
+      opts[i].classList.toggle("active", opts[i].getAttribute("data-color") === color);
+    }
+    if (!fromCustom) {
+      var custom = swatchRow.querySelector(".color-custom");
+      if (custom) custom.value = color;
+    }
+  }
+
+  // Parse a lat/lng pair, tolerating "lat, lng" pasted into one field.
+  function parseCoordInputs() {
+    var latRaw = mLat.value.trim();
+    var lngRaw = mLng.value.trim();
+
+    if (latRaw.indexOf(",") !== -1 && !lngRaw) {
+      var parts = latRaw.split(",");
+      latRaw = parts[0].trim();
+      lngRaw = parts.slice(1).join(",").trim();
+    }
+
+    var lat = Number(latRaw);
+    var lng = Number(lngRaw);
+
+    var latOk = Number.isFinite(lat) && lat >= -90 && lat <= 90 && latRaw !== "";
+    var lngOk = Number.isFinite(lng) && lng >= -180 && lng <= 180 && lngRaw !== "";
+
+    mLat.classList.toggle("invalid", !latOk);
+    mLng.classList.toggle("invalid", !lngOk);
+
+    if (!latOk || !lngOk) return null;
+    return { lat: lat, lng: lng };
+  }
+
+  function parseSched() {
+    var v = mSched.value;
+    if (!v) return null;
+    var t = new Date(v).getTime();
+    return Number.isFinite(t) ? t : null;
+  }
+
+  function applyKindUI() {
+    Array.prototype.forEach.call(kindToggle.querySelectorAll("button"), function (b) {
+      b.classList.toggle("active", b.getAttribute("data-kind") === currentKind);
+    });
+    // color palette only relevant for plain; scheduled time only for pickup/dropoff
+    colorWrap.style.display = (currentKind === "plain") ? "" : "none";
+    schedWrap.style.display = (currentKind === "plain") ? "none" : "";
+  }
+
+  kindToggle.addEventListener("click", function (e) {
+    var b = e.target && e.target.closest ? e.target.closest("button") : null;
+    if (!b) return;
+    currentKind = b.getAttribute("data-kind");
+    applyKindUI();
+  });
+  applyKindUI();
+
+  addForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var coords = parseCoordInputs();
+    if (!coords) {
+      status.className = "status error";
+      status.textContent = "Enter a valid latitude (-90..90) and longitude (-180..180).";
+      return;
+    }
+    var name = mName.value.trim();
+    if (!showCustom.checked) { showCustom.checked = true; customLayer.addTo(map); }
+    var m = addCustomMarker(coords.lat, coords.lng, name, {
+      open: true, kind: currentKind, schedMs: (currentKind === "plain" ? null : parseSched())
+    });
+    mName.value = ""; mLat.value = ""; mLng.value = ""; mSched.value = "";
+    mLat.classList.remove("invalid"); mLng.classList.remove("invalid");
+    mName.focus();
+    status.className = "status";
+    status.textContent = 'Added ' + m.kind + ' "' + (m.name) + '".';
+  });
+
+  geofence.addEventListener("input", function () {
+    geofenceRadius = Number(geofence.value);
+    geofenceVal.textContent = geofenceRadius + " m";
+    drawGeofences();
+  });
+
+  // Click-to-add mode
+  function setAddMode(on) {
+    addMode = on;
+    clickToggle.classList.toggle("active", on);
+    clickToggle.innerHTML = on ? "🎯 Click mode ON — click the map" : "🎯 Click map to add marker";
+    mapEl.classList.toggle("add-mode", on);
+    addBanner.classList.toggle("show", on);
+    if (on && !showCustom.checked) { showCustom.checked = true; customLayer.addTo(map); }
+  }
+
+  clickToggle.addEventListener("click", function () { setAddMode(!addMode); });
+  exitAdd.addEventListener("click", function () { setAddMode(false); });
+
+  map.on("click", function (e) {
+    if (!addMode) return;
+    addCustomMarker(e.latlng.lat, e.latlng.lng, "", { open: true, kind: currentKind });
+    status.className = "status";
+    status.textContent = "Dropped a " + currentKind + " marker. Name it in the popup or list; keep clicking to add more (type is set in the sidebar).";
+  });
+
+  // Clear / export / import
+  clearBtn.addEventListener("click", function () {
+    if (!customMarkers.length) return;
+    customMarkers.forEach(function (m) { customLayer.removeLayer(m.marker); });
+    customMarkers = [];
+    renderList();
+    updateSummary();
+    drawGeofences();
+    refreshLegs();
+  });
+
+  exportBtn.addEventListener("click", function () {
+    if (!customMarkers.length) {
+      status.className = "status error";
+      status.textContent = "No custom markers to export yet.";
+      return;
+    }
+    var data = customMarkers.map(function (m) {
+      return {
+        name: m.name, lat: m.lat, lng: m.lng, color: m.color,
+        kind: m.kind, scheduledIso: m.schedMs ? new Date(m.schedMs).toISOString() : null
+      };
+    });
+    var blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "custom_markers.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  });
+
+  importInput.addEventListener("change", function () {
+    var file = importInput.files && importInput.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var arr = JSON.parse(String(reader.result || ""));
+        if (!Array.isArray(arr)) throw new Error("Expected a JSON array of {name, lat, lng}.");
+        var added = 0;
+        arr.forEach(function (o) {
+          if (!o) return;
+          var lat = Number(o.lat != null ? o.lat : o.Lat);
+          var lng = Number(o.lng != null ? o.lng : (o.lon != null ? o.lon : o.Lng));
+          if (Number.isFinite(lat) && Number.isFinite(lng) &&
+              lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+            var col = (typeof o.color === "string" && /^#[0-9a-fA-F]{6}$/.test(o.color)) ? o.color : DEFAULT_COLOR;
+            var kd = (o.kind === "pickup" || o.kind === "dropoff") ? o.kind : "plain";
+            var sm = null;
+            if (o.scheduledIso) { var tt = new Date(o.scheduledIso).getTime(); if (Number.isFinite(tt)) sm = tt; }
+            addCustomMarker(lat, lng, (o.name != null ? String(o.name) : ""), { color: col, kind: kd, schedMs: sm });
+            added++;
+          }
+        });
+        if (!showCustom.checked) { showCustom.checked = true; customLayer.addTo(map); }
+        if (added) fitEverything();
+        status.className = "status";
+        status.textContent = "Imported " + added + " custom marker" + (added === 1 ? "" : "s") + ".";
+      } catch (err) {
+        status.className = "status error";
+        status.textContent = "Could not import markers: " + ((err && err.message) || "invalid file") + ".";
+      } finally {
+        importInput.value = "";
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  // Sidebar collapse
+  collapseBtn.addEventListener("click", function () {
+    sidebar.classList.add("collapsed");
+    setTimeout(function () { map.invalidateSize(); }, 250);
+  });
+  showSidebar.addEventListener("click", function () {
+    sidebar.classList.remove("collapsed");
+    setTimeout(function () { map.invalidateSize(); }, 250);
+  });
+
+  /* ============ Car path animation (new) ============ */
+
+  var carMarker = null;
+  var animTimeline = [];   // cumulative ms per point
+  var animRealBase = 0;    // first point epoch ms
+  var animRealMode = false;
+  var animTotal = 0;
+  var animPos = 0;         // 0..animTotal
+  var animDir = 1;
+  var animPlaying = false;
+  var animRaf = null;
+  var animLastTs = null;
+  var animScrubbing = false;
+  var speedMult = 45;
+
+  function sliderToMult(v) {
+    var min = 1, max = 2000;
+    return Math.round(min * Math.pow(max / min, v / 100));
+  }
+
+  function carIcon() {
+    var svg = '<div class="car-rot" style="transform:rotate(0deg)">' +
+      '<svg width="30" height="30" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">' +
+      '<polygon points="15,0 10,7 20,7" fill="#f59e0b"/>' +
+      '<rect x="9" y="5" width="12" height="21" rx="5" fill="#2563eb" stroke="#ffffff" stroke-width="1.5"/>' +
+      '<rect x="11" y="7.5" width="8" height="5" rx="2" fill="#bfdbfe"/>' +
+      '<rect x="11" y="19" width="8" height="4.5" rx="1.5" fill="#1e3a8a"/>' +
+      '</svg></div>';
+    return L.divIcon({ className: "car-marker", html: svg, iconSize: [30, 30], iconAnchor: [15, 15] });
+  }
+
+  function bearing(a, b) {
+    var lat1 = a[0] * Math.PI / 180, lat2 = b[0] * Math.PI / 180;
+    var dLon = (b[1] - a[1]) * Math.PI / 180;
+    var y = Math.sin(dLon) * Math.cos(lat2);
+    var x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  }
+
+  function buildTimeline() {
+    animTimeline = [];
+    var n = currentPoints.length;
+    if (!n) { animTotal = 0; return; }
+    var base = currentPoints[0].time;
+    var last = currentPoints[n - 1].time;
+    animRealBase = base;
+    animRealMode = (last - base) > 0;
+    if (animRealMode) {
+      for (var i = 0; i < n; i++) animTimeline.push(currentPoints[i].time - base);
+      animTotal = last - base;
+    } else {
+      for (var j = 0; j < n; j++) animTimeline.push(j * 1000);
+      animTotal = (n - 1) * 1000;
+    }
+  }
+
+  function positionAt(offset) {
+    var n = currentPoints.length;
+    if (n === 0) return null;
+    if (n === 1) return { lat: currentPoints[0].lat, lng: currentPoints[0].lng, brng: 0, idx: 0 };
+
+    if (offset <= 0) {
+      var p0 = currentPoints[0];
+      return { lat: p0.lat, lng: p0.lng, brng: bearing([p0.lat, p0.lng], [currentPoints[1].lat, currentPoints[1].lng]), idx: 0 };
+    }
+    if (offset >= animTotal) {
+      var pe = currentPoints[n - 1];
+      return { lat: pe.lat, lng: pe.lng, brng: bearing([currentPoints[n - 2].lat, currentPoints[n - 2].lng], [pe.lat, pe.lng]), idx: n - 1 };
+    }
+    var i = 0;
+    while (i < n - 1 && animTimeline[i + 1] < offset) i++;
+    var t0 = animTimeline[i], t1 = animTimeline[i + 1];
+    var f = (t1 > t0) ? (offset - t0) / (t1 - t0) : 0;
+    var a = currentPoints[i], b = currentPoints[i + 1];
+    return {
+      lat: a.lat + (b.lat - a.lat) * f,
+      lng: a.lng + (b.lng - a.lng) * f,
+      brng: bearing([a.lat, a.lng], [b.lat, b.lng]),
+      idx: i
+    };
+  }
+
+  function renderCar(updateSlider) {
+    var pos = positionAt(animPos);
+    if (!pos) return;
+    if (!carMarker) {
+      carMarker = L.marker([pos.lat, pos.lng], { icon: carIcon(), zIndexOffset: 1000, interactive: false }).addTo(carLayer);
+    } else {
+      carMarker.setLatLng([pos.lat, pos.lng]);
+      var el = carMarker.getElement();
+      if (el) { var rot = el.querySelector(".car-rot"); if (rot) rot.style.transform = "rotate(" + pos.brng + "deg)"; }
+    }
+    if (followCar.checked && (animPlaying || animScrubbing)) {
+      map.panTo([pos.lat, pos.lng], { animate: false });
+    }
+    if (updateSlider !== false && !animScrubbing) {
+      scrub.value = animTotal > 0 ? Math.round(animPos / animTotal * 1000) : 0;
+    }
+    updatePlayInfo(pos);
+  }
+
+  function updatePlayInfo(pos) {
+    var n = currentPoints.length;
+    var pct = animTotal > 0 ? Math.round(animPos / animTotal * 100) : 0;
+    var label = "Point " + (pos.idx + 1) + " / " + n;
+    if (animRealMode) label += " · " + formatShortTime(animRealBase + animPos);
+    label += " · " + pct + "%";
+    playInfo.textContent = label;
+  }
+
+  function getSelectedDir() {
+    var active = dirToggle.querySelector("button.active");
+    return active ? Number(active.getAttribute("data-dir")) : 1;
+  }
+
+  function setPlayIcon(playing) { playBtn.textContent = playing ? "⏸" : "▶"; }
+
+  function setupAnimation() {
+    stopAnim();
+    carLayer.clearLayers();
+    carMarker = null;
+    buildTimeline();
+    if (currentPoints.length) {
+      playbar.classList.remove("disabled");
+      animDir = getSelectedDir();
+      animPos = (animDir === 1) ? 0 : animTotal;
+      renderCar();
+    } else {
+      playbar.classList.add("disabled");
+      playInfo.textContent = "—";
+    }
+    setPlayIcon(false);
+  }
+
+  function frame(now) {
+    if (!animPlaying) return;
+    if (animLastTs === null) animLastTs = now;
+    var dt = now - animLastTs;
+    animLastTs = now;
+    animPos += dt * speedMult * animDir;
+    var done = false;
+    if (animPos >= animTotal) { animPos = animTotal; done = (animDir === 1); }
+    if (animPos <= 0) { animPos = 0; done = (animDir === -1); }
+    renderCar();
+    if (done) { pauseAnim(); return; }
+    animRaf = requestAnimationFrame(frame);
+  }
+
+  function playAnim() {
+    if (!currentPoints.length) return;
+    if (animDir === 1 && animPos >= animTotal) animPos = 0;
+    if (animDir === -1 && animPos <= 0) animPos = animTotal;
+    animPlaying = true;
+    animLastTs = null;
+    setPlayIcon(true);
+    animRaf = requestAnimationFrame(frame);
+  }
+
+  function pauseAnim() {
+    animPlaying = false;
+    setPlayIcon(false);
+    if (animRaf) { cancelAnimationFrame(animRaf); animRaf = null; }
+  }
+
+  function stopAnim() { pauseAnim(); }
+
+  function resetAnim() {
+    animDir = getSelectedDir();
+    animPos = (animDir === 1) ? 0 : animTotal;
+    renderCar();
+  }
+
+  playBtn.addEventListener("click", function () { if (animPlaying) pauseAnim(); else playAnim(); });
+  resetBtn.addEventListener("click", resetAnim);
+
+  followCar.addEventListener("change", function () {
+    if (followCar.checked && carMarker) {
+      var pos = positionAt(animPos);
+      if (pos) map.panTo([pos.lat, pos.lng], { animate: true });
+    }
+  });
+
+  dirToggle.addEventListener("click", function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest("button") : null;
+    if (!btn) return;
+    Array.prototype.forEach.call(dirToggle.querySelectorAll("button"), function (b) {
+      b.classList.toggle("active", b === btn);
+    });
+    animDir = getSelectedDir();
+    renderCar();
+  });
+
+  speedInput.addEventListener("input", function () {
+    speedMult = sliderToMult(Number(speedInput.value));
+    speedVal.textContent = "×" + speedMult;
+  });
+  speedMult = sliderToMult(Number(speedInput.value));
+  speedVal.textContent = "×" + speedMult;
+
+  var wasPlayingBeforeScrub = false;
+  function beginScrub() {
+    if (animScrubbing) return;
+    animScrubbing = true;
+    wasPlayingBeforeScrub = animPlaying;
+    if (animPlaying) pauseAnim();
+  }
+  function endScrub() {
+    if (!animScrubbing) return;
+    animScrubbing = false;
+    if (wasPlayingBeforeScrub) playAnim();
+    wasPlayingBeforeScrub = false;
+  }
+  scrub.addEventListener("pointerdown", beginScrub);
+  scrub.addEventListener("pointerup", endScrub);
+  scrub.addEventListener("input", function () {
+    if (!animTotal) return;
+    beginScrub();
+    animPos = Number(scrub.value) / 1000 * animTotal;
+    renderCar(false);
+  });
+  scrub.addEventListener("change", endScrub);
+
+  /* ============ Gap & speed analytics (new) ============ */
+
+  var C_TIME = "#2a78d6", C_DIST = "#1baf7a", C_SPEED = "#eb6834";
+  var INK_MUTED = "#898781", GRID = "#e1e0d9";
+  var charts = { time: null, dist: null, speed: null };
+
+  function haversine(a, b) {
+    var R = 6371000;
+    var dLat = (b.lat - a.lat) * Math.PI / 180;
+    var dLng = (b.lng - a.lng) * Math.PI / 180;
+    var la1 = a.lat * Math.PI / 180, la2 = b.lat * Math.PI / 180;
+    var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+
+  function fmtDist(m) { return m >= 1000 ? (m / 1000).toFixed(2) + " km" : Math.round(m) + " m"; }
+  function fmtDur(sec) {
+    sec = Math.round(sec);
+    var h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+    return (h ? h + "h " : "") + (m ? m + "m " : "") + s + "s";
+  }
+  function fmtSpeed(kmh) { return kmh.toFixed(1) + " km/h"; }
+
+  function computeSegments() {
+    var segs = [];
+    for (var i = 1; i < currentPoints.length; i++) {
+      var a = currentPoints[i - 1], b = currentPoints[i];
+      var dtSec = (b.time - a.time) / 1000;
+      var dist = haversine(a, b);
+      segs.push({
+        from: i, to: i + 1, toIdx: i,
+        dtSec: dtSec, dist: dist,
+        speed: dtSec > 0 ? (dist / dtSec) * 3.6 : null
+      });
+    }
+    return segs;
+  }
+
+  function computeStats(segs) {
+    var n = currentPoints.length;
+    var totalTime = (currentPoints[n - 1].time - currentPoints[0].time) / 1000;
+    var totalDist = 0, movingTime = 0;
+    var gaps = [], dists = [];
+    var maxGap = { v: -1, to: 0 }, maxDist = { v: -1, to: 0 }, maxSpeed = { v: -1, to: 0 };
+
+    segs.forEach(function (s) {
+      totalDist += s.dist; dists.push(s.dist);
+      if (s.dtSec > 0) gaps.push(s.dtSec);
+      if (s.speed != null && s.dtSec > 0 && s.speed > 1) movingTime += s.dtSec;
+      if (s.dtSec > maxGap.v) maxGap = { v: s.dtSec, to: s.to };
+      if (s.dist > maxDist.v) maxDist = { v: s.dist, to: s.to };
+      if (s.speed != null && s.speed > maxSpeed.v) maxSpeed = { v: s.speed, to: s.to };
+    });
+
+    function avg(arr) { return arr.length ? arr.reduce(function (x, y) { return x + y; }, 0) / arr.length : 0; }
+    function median(arr) {
+      if (!arr.length) return 0;
+      var c = arr.slice().sort(function (x, y) { return x - y; });
+      var m = Math.floor(c.length / 2);
+      return c.length % 2 ? c[m] : (c[m - 1] + c[m]) / 2;
+    }
+
+    return {
+      n: n, segCount: segs.length,
+      totalDist: totalDist, totalTime: totalTime, movingTime: movingTime,
+      avgGap: avg(gaps), medGap: median(gaps), maxGap: maxGap,
+      avgDist: avg(dists), maxDist: maxDist,
+      avgSpeed: totalTime > 0 ? (totalDist / totalTime) * 3.6 : null,
+      maxSpeed: maxSpeed.v >= 0 ? maxSpeed : null,
+      hasTime: animRealMode
+    };
+  }
+
+  function card(k, v, sub) {
+    return '<div class="stat-card"><div class="k">' + escapeHtml(k) + '</div>' +
+      '<div class="v">' + escapeHtml(String(v)) + '</div>' +
+      (sub ? '<div class="sub">' + escapeHtml(sub) + '</div>' : '') + '</div>';
+  }
+
+  function renderStats(st) {
+    var cards = [];
+    cards.push(card("Blips", st.n, st.segCount + " segments"));
+    cards.push(card("Total distance", fmtDist(st.totalDist), ""));
+    if (st.hasTime) {
+      cards.push(card("Total time", fmtDur(st.totalTime), "moving ~" + fmtDur(st.movingTime)));
+      cards.push(card("Avg speed", st.avgSpeed != null ? fmtSpeed(st.avgSpeed) : "—",
+        st.maxSpeed ? ("max " + fmtSpeed(st.maxSpeed.v) + " @ blip " + st.maxSpeed.to) : ""));
+      cards.push(card("Avg time gap", fmtDur(st.avgGap), "median " + fmtDur(st.medGap)));
+      cards.push(card("Longest gap", fmtDur(st.maxGap.v), "before blip " + st.maxGap.to));
+    }
+    cards.push(card("Avg blip distance", fmtDist(st.avgDist),
+      "max " + fmtDist(st.maxDist.v) + " @ blip " + st.maxDist.to));
+    statGrid.innerHTML = cards.join("");
+  }
+
+  function focusBlip(idx) {
+    var p = currentPoints[idx];
+    if (!p) return;
+    closeAnalytics();
+    map.setView([p.lat, p.lng], Math.max(map.getZoom(), 16));
+    var mk = pointMarkers[idx];
+    if (mk && map.hasLayer(markerLayer)) {
+      mk.openPopup();
+    } else {
+      L.popup().setLatLng([p.lat, p.lng])
+        .setContent("<b>Blip " + (idx + 1) + "</b><br>" + escapeHtml(formatDateTime(p.time)) +
+          "<br>" + p.lat.toFixed(6) + ", " + p.lng.toFixed(6))
+        .openOn(map);
+    }
+  }
+
+  function chartChrome() {
+    var dark = document.documentElement.getAttribute("data-theme") === "dark";
+    return { muted: dark ? "#9aa7b8" : "#898781", grid: dark ? "#2b3440" : "#e1e0d9" };
+  }
+
+  function commonOpts(yTitle, focus, valFmt, segs) {
+    var cc = chartChrome();
+    var INK_MUTED = cc.muted, GRID = cc.grid;
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      // click-to-jump is handled by a manual pointer listener (attachClickJump)
+      // so it keeps working when the chart is zoomed/panned.
+      onHover: function (e, els) {
+        if (e && e.native && e.native.target) e.native.target.style.cursor = (els && els.length) ? "pointer" : "default";
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: function (items) { var s = segs[items[0].dataIndex]; return "Blip " + s.from + " → " + s.to; },
+            label: function (item) { return valFmt(item.dataIndex); }
+          }
+        },
+        zoom: {
+          zoom: {
+            wheel: { enabled: true },
+            pinch: { enabled: true },
+            drag: { enabled: false },
+            mode: "x"
+          },
+          pan: { enabled: true, mode: "x" },
+          limits: { x: { minRange: 2 } }
+        }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: "arriving at blip #", color: INK_MUTED, font: { size: 11 } },
+          grid: { display: false },
+          ticks: { color: INK_MUTED, maxRotation: 0, autoSkip: true, autoSkipPadding: 12 }
+        },
+        y: {
+          title: { display: true, text: yTitle, color: INK_MUTED, font: { size: 11 } },
+          beginAtZero: true,
+          grid: { color: GRID },
+          ticks: { color: INK_MUTED }
+        }
+      }
+    };
+  }
+
+  function destroyCharts() {
+    ["time", "dist", "speed"].forEach(function (k) {
+      if (charts[k]) { charts[k].destroy(); charts[k] = null; }
+    });
+  }
+
+  // Manual click-to-jump that survives zoom/pan: a stationary click on a column
+  // jumps the map to that segment's blip; a drag (pan) is ignored.
+  function attachClickJump(chart, segs) {
+    var cv = chart.canvas, dx = 0, dy = 0, moved = false;
+    cv.addEventListener("pointerdown", function (e) { dx = e.clientX; dy = e.clientY; moved = false; });
+    cv.addEventListener("pointermove", function (e) {
+      if (Math.abs(e.clientX - dx) > 6 || Math.abs(e.clientY - dy) > 6) moved = true;
+    });
+    cv.addEventListener("pointerup", function (e) {
+      if (moved) return;
+      var els = chart.getElementsAtEventForMode(e, "index", { intersect: false }, true);
+      if (els && els.length) {
+        var idx = els[0].index;
+        if (segs[idx]) setTimeout(function () { focusBlip(segs[idx].toIdx); }, 0);
+      }
+    });
+  }
+
+  function buildCharts(segs) {
+    destroyCharts();
+    if (typeof Chart === "undefined") {
+      analyticsNote.textContent = "The chart library could not load (needs internet). Summary numbers above are still accurate.";
+      return;
+    }
+    var labels = segs.map(function (s) { return String(s.to); });
+    var focus = function (i) { if (segs[i]) focusBlip(segs[i].toIdx); };
+
+    if (animRealMode) {
+      charts.time = new Chart($("chartTime"), {
+        type: "bar",
+        data: { labels: labels, datasets: [{ data: segs.map(function (s) { return Math.round(s.dtSec); }), backgroundColor: C_TIME, borderRadius: 4, borderSkipped: false, maxBarThickness: 26 }] },
+        options: commonOpts("Seconds", focus, function (i) { return fmtDur(segs[i].dtSec); }, segs)
+      });
+      charts.speed = new Chart($("chartSpeed"), {
+        type: "line",
+        data: { labels: labels, datasets: [{ data: segs.map(function (s) { return s.speed; }), borderColor: C_SPEED, backgroundColor: "rgba(235,104,52,.12)", borderWidth: 2, pointRadius: 3, pointHoverRadius: 5, pointBackgroundColor: C_SPEED, tension: .25, spanGaps: true, fill: true }] },
+        options: commonOpts("km/h", focus, function (i) { return segs[i].speed != null ? fmtSpeed(segs[i].speed) : "—"; }, segs)
+      });
+      attachClickJump(charts.time, segs);
+      attachClickJump(charts.speed, segs);
+    }
+
+    charts.dist = new Chart($("chartDist"), {
+      type: "bar",
+      data: { labels: labels, datasets: [{ data: segs.map(function (s) { return Math.round(s.dist); }), backgroundColor: C_DIST, borderRadius: 4, borderSkipped: false, maxBarThickness: 26 }] },
+      options: commonOpts("Meters", focus, function (i) { return fmtDist(segs[i].dist); }, segs)
+    });
+    attachClickJump(charts.dist, segs);
+  }
+
+  function openAnalytics() {
+    if (!currentPoints.length || currentPoints.length < 2) return;
+    var segs = computeSegments();
+    var st = computeStats(segs);
+
+    analyticsNote.textContent = st.hasTime ? "" :
+      "This file's blips share the same timestamp, so time-gap and speed can't be computed. Distances between blips are still shown below.";
+
+    var timeCard = $("chartTime").closest(".chart-card");
+    var speedCard = $("chartSpeed").closest(".chart-card");
+    if (timeCard) timeCard.style.display = st.hasTime ? "" : "none";
+    if (speedCard) speedCard.style.display = st.hasTime ? "" : "none";
+
+    renderStats(st);
+    analyticsOverlay.classList.remove("hidden");
+    requestAnimationFrame(function () { buildCharts(segs); });
+  }
+
+  function closeAnalytics() {
+    analyticsOverlay.classList.add("hidden");
+    destroyCharts();
+  }
+
+  /* ---- Export for codebase analysis ---- */
+
+  function round(x, d) {
+    if (x == null || !Number.isFinite(x)) return null;
+    var f = Math.pow(10, d || 0);
+    return Math.round(x * f) / f;
+  }
+
+  function downloadFile(name, text, mime) {
+    var blob = new Blob([text], { type: mime || "text/plain" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function safeName(base, ext) {
+    var n = (currentFilename || "run").replace(/\.[^.]+$/, "").replace(/[^a-z0-9_-]+/gi, "_");
+    return base + "_" + n + "." + ext;
+  }
+
+  var ANOMALY_INFO = {
+    large_time_gap: {
+      title: "Large time gaps",
+      why: "A long interval between two consecutive fixes means the location stream stopped or was throttled. Common code-side causes: the OS suspended background location, no foreground service / background-location mode was held during the trip, the sampling interval is too large, connectivity dropped and points were not buffered/flushed, or the app process was killed and did not resume tracking.",
+      check: "Review the location-tracking lifecycle: background execution (foreground service on Android / background-location + significant-change on iOS), requested update interval & priority (high accuracy), wake-lock handling, and the offline queue that buffers fixes while offline and flushes them on reconnect. Confirm tracking auto-resumes after process death."
+    },
+    oversampled: {
+      title: "Over-sampling (fixes < 2 s apart)",
+      why: "Fixes arriving only a second or two apart waste battery and bandwidth and bloat storage without adding trajectory detail.",
+      check: "Add a minimum time and/or distance filter between recorded fixes (e.g. record no more than 1/sec or when moved > N meters), or use adaptive sampling that slows the cadence when the vehicle is slow/stationary."
+    },
+    implausible_speed: {
+      title: "Implausible speed between fixes",
+      why: "Segment speeds above ~150 km/h between consecutive fixes almost always indicate GPS jitter or an accepted low-accuracy fix that 'teleports' the position, not real movement.",
+      check: "Filter incoming fixes by reported accuracy (drop fixes with horizontal accuracy worse than ~30–50 m), add a speed/distance sanity gate that rejects physically impossible jumps, and consider a smoothing filter (e.g. Kalman) before persisting points."
+    },
+    stationary_noise: {
+      title: "Stationary GPS drift",
+      why: "Near-zero movement recorded over a meaningful time span indicates the device was parked while GPS noise still produced slightly different coordinates.",
+      check: "Apply a minimum-distance filter so near-duplicate points while stationary are collapsed, and/or detect the 'stopped' state and pause recording until movement resumes."
+    },
+    nonincreasing_time: {
+      title: "Non-increasing / duplicate timestamps",
+      why: "Consecutive fixes whose timestamp does not increase indicate a clock/source problem (mixing device and server clocks), unsorted data, or duplicate ingestion.",
+      check: "Use a single monotonic time source, sort by time and de-duplicate on ingestion, and verify the timestamp field written by the client is the fix time, not the upload time."
+    },
+    low_accuracy: {
+      title: "Low-accuracy fixes",
+      why: "Fixes with a large reported accuracy radius are unreliable and drag the trajectory around.",
+      check: "Filter or down-weight fixes whose reported accuracy exceeds a threshold before they are stored or drawn."
+    }
+  };
+
+  function detectAnomalies(segs, st) {
+    var groups = {};
+    function add(type, entry) {
+      if (!groups[type]) groups[type] = [];
+      groups[type].push(entry);
+    }
+    var medGap = st.medGap || 0;
+
+    segs.forEach(function (s) {
+      if (st.hasTime && s.dtSec > 0) {
+        if (s.dtSec > Math.max(120, medGap * 3)) {
+          add("large_time_gap", { segment: s.from + "→" + s.to, toBlip: s.to, gapSec: round(s.dtSec, 0), distanceM: round(s.dist, 1) });
+        }
+        if (s.dtSec < 2) {
+          add("oversampled", { segment: s.from + "→" + s.to, toBlip: s.to, gapSec: round(s.dtSec, 2), distanceM: round(s.dist, 1) });
+        }
+      }
+      if (st.hasTime && s.dtSec <= 0) {
+        add("nonincreasing_time", { segment: s.from + "→" + s.to, toBlip: s.to, gapSec: round(s.dtSec, 0) });
+      }
+      if (s.speed != null && s.speed > 150) {
+        add("implausible_speed", { segment: s.from + "→" + s.to, toBlip: s.to, speedKmh: round(s.speed, 1), distanceM: round(s.dist, 1), gapSec: round(s.dtSec, 1) });
+      }
+      if (st.hasTime && s.dtSec > 5 && s.dist < 2) {
+        add("stationary_noise", { segment: s.from + "→" + s.to, toBlip: s.to, gapSec: round(s.dtSec, 0), distanceM: round(s.dist, 2) });
+      }
+    });
+
+    // Low-accuracy fixes (only if any point carries an Accuracy value)
+    currentPoints.forEach(function (p, i) {
+      var acc = Number(p.accuracy);
+      if (Number.isFinite(acc) && acc > 50) {
+        add("low_accuracy", { blip: i + 1, accuracy: round(acc, 1) });
+      }
+    });
+
+    return Object.keys(groups).map(function (type) {
+      var info = ANOMALY_INFO[type] || { title: type, why: "", check: "" };
+      var items = groups[type];
+      return {
+        type: type, title: info.title, count: items.length,
+        why: info.why, recommendation: info.check,
+        examples: items.slice(0, 25)
+      };
+    });
+  }
+
+  function buildExportModel() {
+    var segs = computeSegments();
+    var st = computeStats(segs);
+    var anomalies = detectAnomalies(segs, st);
+
+    return {
+      schemaVersion: 1,
+      generatedBy: "Run GPS Viewer — Trip Analytics",
+      generatedAt: new Date().toISOString(),
+      source: {
+        file: currentFilename || null,
+        timezoneUsedForDisplay: timezone.value,
+        blipCount: st.n,
+        segmentCount: st.segCount,
+        hasRealTimestamps: st.hasTime
+      },
+      summary: {
+        totalDistanceMeters: round(st.totalDist, 1),
+        totalDurationSeconds: st.hasTime ? round(st.totalTime, 0) : null,
+        movingTimeSeconds: st.hasTime ? round(st.movingTime, 0) : null,
+        avgSpeedKmh: st.avgSpeed != null ? round(st.avgSpeed, 2) : null,
+        maxSpeedKmh: st.maxSpeed ? round(st.maxSpeed.v, 2) : null,
+        maxSpeedAtBlip: st.maxSpeed ? st.maxSpeed.to : null,
+        avgTimeGapSeconds: st.hasTime ? round(st.avgGap, 1) : null,
+        medianTimeGapSeconds: st.hasTime ? round(st.medGap, 1) : null,
+        longestGapSeconds: st.hasTime ? round(st.maxGap.v, 0) : null,
+        longestGapBeforeBlip: st.hasTime ? st.maxGap.to : null,
+        avgBlipDistanceMeters: round(st.avgDist, 1),
+        maxBlipDistanceMeters: round(st.maxDist.v, 1),
+        maxBlipDistanceAtBlip: st.maxDist.to
+      },
+      anomalies: anomalies,
+      blips: currentPoints.map(function (p, i) {
+        return {
+          index: i + 1,
+          lat: round(p.lat, 7), lng: round(p.lng, 7),
+          epochMs: p.time,
+          isoTime: st.hasTime ? new Date(p.time).toISOString() : null,
+          accuracy: p.accuracy !== undefined ? p.accuracy : null,
+          speedField: p.speed !== undefined ? p.speed : null,
+          bookingId: p.bookingId, statusId: p.statusId,
+          jsonPath: p.id
+        };
+      }),
+      segments: segs.map(function (s) {
+        return {
+          fromBlip: s.from, toBlip: s.to,
+          timeGapSeconds: st.hasTime ? round(s.dtSec, 2) : null,
+          distanceMeters: round(s.dist, 2),
+          impliedSpeedKmh: s.speed != null ? round(s.speed, 2) : null
+        };
+      })
+    };
+  }
+
+  function modelToMarkdown(m) {
+    var L = [];
+    var s = m.summary, src = m.source;
+    L.push("# GPS Trip Gap Analysis — " + (src.file || "run"));
+    L.push("");
+    L.push("> **For Claude:** This report describes the gaps, distances and implied speeds between consecutive GPS blips in a recorded trip. It is meant to be read **alongside the source code** that produces, ingests, or processes these GPS points, so you can trace each finding to the responsible logic and propose concrete fixes. The complete machine-readable data is embedded as JSON at the end of this file.");
+    L.push("");
+    L.push("## How to use this with the codebase");
+    L.push("");
+    L.push("1. Open this report in a session that also has access to the repository that records or handles GPS blips (mobile location tracker, ingestion API, or processing pipeline).");
+    L.push("2. For each item under **Findings**, locate the responsible code path using the **For codebase review** note, and confirm whether the behavior is expected or a bug.");
+    L.push("3. Prioritise by `count` and severity, then propose specific code changes (filters, sampling config, background-location handling, timestamp normalisation, buffering/retry).");
+    L.push("4. Use the embedded JSON for exact per-segment values if you need to write a test or reproduce a case.");
+    L.push("");
+    L.push("## Trip summary");
+    L.push("");
+    L.push("| Metric | Value |");
+    L.push("| --- | --- |");
+    L.push("| Source file | " + (src.file || "—") + " |");
+    L.push("| Blips / segments | " + src.blipCount + " / " + src.segmentCount + " |");
+    L.push("| Real timestamps present | " + (src.hasRealTimestamps ? "yes" : "no (all equal)") + " |");
+    L.push("| Total distance | " + fmtDist(m.summary.totalDistanceMeters) + " |");
+    if (src.hasRealTimestamps) {
+      L.push("| Total duration | " + fmtDur(s.totalDurationSeconds) + " |");
+      L.push("| Moving time (approx) | " + fmtDur(s.movingTimeSeconds) + " |");
+      L.push("| Average speed | " + (s.avgSpeedKmh != null ? s.avgSpeedKmh + " km/h" : "—") + " |");
+      L.push("| Max speed | " + (s.maxSpeedKmh != null ? s.maxSpeedKmh + " km/h (before blip " + s.maxSpeedAtBlip + ")" : "—") + " |");
+      L.push("| Avg / median time gap | " + s.avgTimeGapSeconds + " s / " + s.medianTimeGapSeconds + " s |");
+      L.push("| Longest gap | " + fmtDur(s.longestGapSeconds) + " (before blip " + s.longestGapBeforeBlip + ") |");
+    }
+    L.push("| Avg / max blip distance | " + fmtDist(s.avgBlipDistanceMeters) + " / " + fmtDist(s.maxBlipDistanceMeters) + " (before blip " + s.maxBlipDistanceAtBlip + ") |");
+    L.push("");
+
+    L.push("## Findings (anomalies detected)");
+    L.push("");
+    if (!m.anomalies.length) {
+      L.push("_No anomalies were detected against the built-in thresholds (large gaps, over-sampling, implausible speed, stationary drift, non-increasing timestamps, low accuracy). The trip looks clean; the embedded data is still available below for custom checks._");
+    } else {
+      m.anomalies.forEach(function (a, i) {
+        L.push("### " + (i + 1) + ". " + a.title + " — " + a.count + " found");
+        L.push("");
+        if (a.why) L.push(a.why);
+        L.push("");
+        var head = Object.keys(a.examples[0] || { segment: 1 });
+        L.push("| " + head.join(" | ") + " |");
+        L.push("| " + head.map(function () { return "---"; }).join(" | ") + " |");
+        a.examples.forEach(function (ex) {
+          L.push("| " + head.map(function (k) { return ex[k]; }).join(" | ") + " |");
+        });
+        if (a.count > a.examples.length) L.push("");
+        if (a.count > a.examples.length) L.push("_… and " + (a.count - a.examples.length) + " more (see embedded JSON)._");
+        L.push("");
+        L.push("**For codebase review:** " + a.recommendation);
+        L.push("");
+      });
+    }
+
+    L.push("## Machine-readable data");
+    L.push("");
+    L.push("Full structured payload (schema v" + m.schemaVersion + "). Fields: `summary`, `anomalies[]` (with `examples[]`), `blips[]`, `segments[]`.");
+    L.push("");
+    L.push("```json");
+    L.push(JSON.stringify(m, null, 2));
+    L.push("```");
+    L.push("");
+    return L.join("\n");
+  }
+
+  function doExport(kind) {
+    if (!currentPoints.length || currentPoints.length < 2) return;
+    var model = buildExportModel();
+    if (kind === "json") {
+      downloadFile(safeName("gps_gap_analysis", "json"), JSON.stringify(model, null, 2), "application/json");
+    } else {
+      downloadFile(safeName("gps_gap_analysis", "md"), modelToMarkdown(model), "text/markdown");
+    }
+  }
+
+  exportMd.addEventListener("click", function () { doExport("md"); });
+  exportJson.addEventListener("click", function () { doExport("json"); });
+
+  // Zoom controls (X-axis) for the analytics charts
+  analyticsOverlay.addEventListener("click", function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest(".zoom-ctrls button") : null;
+    if (!btn) return;
+    var key = btn.parentNode.getAttribute("data-chart");
+    var ch = charts[key];
+    if (!ch) return;
+    var act = btn.getAttribute("data-act");
+    if (act === "reset") { if (ch.resetZoom) ch.resetZoom(); }
+    else if (ch.zoom) { ch.zoom({ x: act === "in" ? 1.5 : 1 / 1.5 }); }
+  });
+
+  analyticsBtn.addEventListener("click", openAnalytics);
+  analyticsClose.addEventListener("click", closeAnalytics);
+  analyticsOverlay.addEventListener("click", function (e) { if (e.target === analyticsOverlay) closeAnalytics(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !analyticsOverlay.classList.contains("hidden")) closeAnalytics();
+  });
+
+  /* ============ NEMT trip audit (new) ============ */
+
+  var auditOverlay = $("auditOverlay");
+  var auditClose = $("auditClose");
+  var auditKpis = $("auditKpis");
+  var auditFlags = $("auditFlags");
+  var auditStops = $("auditStops");
+  var auditReportMd = $("auditReportMd");
+  var auditReportJson = $("auditReportJson");
+  var auditPrint = $("auditPrint");
+  var showLegs = $("showLegs");
+  var legsLegend = $("legsLegend");
+  var speedLimitInput = $("speedLimit");
+
+  var legsLayer = L.layerGroup();
+  var LOADED_COLOR = "#7c3aed", DEAD_COLOR = "#9ca3af";
+  var speedLimitKmh = 80;
+  var M_PER_MILE = 1609.344;
+
+  function stopMarkers() {
+    return customMarkers.filter(function (m) { return m.kind === "pickup" || m.kind === "dropoff"; });
+  }
+
+  function computeNemt() {
+    var pts = currentPoints;
+    var stops = stopMarkers();
+    var res = { stops: [], mileage: null, occupancyMax: 0, speeding: [], flags: [], segLoaded: [], events: [], radius: geofenceRadius, speedLimit: speedLimitKmh };
+    if (pts.length < 2) return res;
+
+    stops.forEach(function (m) {
+      var minD = Infinity, minIdx = -1;
+      for (var i = 0; i < pts.length; i++) {
+        var d = haversine(pts[i], m);
+        if (d < minD) { minD = d; minIdx = i; }
+      }
+      var reached = minD <= geofenceRadius;
+      var arrivalMs = null, departureMs = null, dwellSec = null, loIdx = null, hiIdx = null;
+      if (reached) {
+        loIdx = minIdx; hiIdx = minIdx;
+        while (loIdx - 1 >= 0 && haversine(pts[loIdx - 1], m) <= geofenceRadius) loIdx--;
+        while (hiIdx + 1 < pts.length && haversine(pts[hiIdx + 1], m) <= geofenceRadius) hiIdx++;
+        arrivalMs = pts[loIdx].time; departureMs = pts[hiIdx].time; dwellSec = (departureMs - arrivalMs) / 1000;
+      }
+      var onTimeSec = (m.schedMs && arrivalMs != null) ? (arrivalMs - m.schedMs) / 1000 : null;
+      var flags = [];
+      if (!reached) flags.push({ level: "bad", text: "No GPS presence within " + geofenceRadius + " m (closest " + Math.round(minD) + " m)." });
+      if (reached && loIdx != null) {
+        for (var j = loIdx + 1; j <= hiIdx; j++) {
+          if ((pts[j].time - pts[j - 1].time) / 1000 > 120) { flags.push({ level: "warn", text: "GPS gap > 2 min while at this stop." }); break; }
+        }
+      }
+      res.stops.push({
+        id: m.id, name: m.name, kind: m.kind, lat: m.lat, lng: m.lng, color: m.color,
+        schedMs: m.schedMs, reached: reached, nearestM: Math.round(minD),
+        arrivalMs: arrivalMs, departureMs: departureMs, dwellSec: dwellSec,
+        onTimeSec: onTimeSec, minIdx: minIdx, loIdx: loIdx, hiIdx: hiIdx, flags: flags
+      });
+    });
+
+    // occupancy events (from reached stops)
+    var events = [];
+    res.stops.forEach(function (s) {
+      if (!s.reached) return;
+      var t = (s.kind === "pickup") ? (s.departureMs != null ? s.departureMs : s.arrivalMs)
+                                    : (s.arrivalMs != null ? s.arrivalMs : s.departureMs);
+      events.push({ t: t, delta: s.kind === "pickup" ? 1 : -1, name: s.name, kind: s.kind });
+    });
+    events.sort(function (a, b) { return a.t - b.t; });
+    res.events = events;
+
+    var occ = 0, occMax = 0, negFlag = false;
+    events.forEach(function (ev) { occ += ev.delta; if (occ < 0) { negFlag = true; occ = 0; } if (occ > occMax) occMax = occ; });
+    res.occupancyMax = occMax;
+
+    function occAt(t) {
+      var o = 0;
+      for (var i = 0; i < events.length; i++) {
+        if (events[i].t <= t) { o += events[i].delta; if (o < 0) o = 0; } else break;
+      }
+      return o;
+    }
+
+    var total = 0, loaded = 0, dead = 0, segLoaded = [];
+    for (var i = 1; i < pts.length; i++) {
+      var a = pts[i - 1], b = pts[i];
+      var d = haversine(a, b); total += d;
+      var isLoaded = occAt((a.time + b.time) / 2) > 0;
+      if (isLoaded) loaded += d; else dead += d;
+      segLoaded.push(isLoaded);
+      var dtSec = (b.time - a.time) / 1000;
+      if (dtSec > 0) {
+        var sp = (d / dtSec) * 3.6;
+        if (sp > speedLimitKmh && sp <= 300) res.speeding.push({ fromBlip: i, toBlip: i + 1, speedKmh: round(sp, 1), distanceM: round(d, 1), gapSec: round(dtSec, 1) });
+      }
+    }
+    res.mileage = { totalM: total, loadedM: loaded, deadheadM: dead, loadedPct: total > 0 ? loaded / total * 100 : 0 };
+    res.segLoaded = segLoaded;
+
+    var pickups = stops.filter(function (m) { return m.kind === "pickup"; }).length;
+    var dropoffs = stops.filter(function (m) { return m.kind === "dropoff"; }).length;
+    var notReached = res.stops.filter(function (s) { return !s.reached; }).length;
+    if (!stops.length) res.flags.push({ level: "warn", text: "No pickup/dropoff markers placed yet. Add them in the sidebar to verify the trip and compute loaded miles." });
+    if (notReached) res.flags.push({ level: "bad", text: notReached + " stop(s) could not be verified — the vehicle never came within the geofence. Possible undocumented stop or GPS dropout." });
+    if (negFlag) res.flags.push({ level: "warn", text: "A dropoff appears before any matching pickup in time order — check the stop sequence or marker placement." });
+    if (stops.length && pickups !== dropoffs) res.flags.push({ level: "warn", text: "Pickups (" + pickups + ") and dropoffs (" + dropoffs + ") are unbalanced; loaded-mile inference assumes each pickup is eventually dropped off." });
+    if (res.speeding.length) res.flags.push({ level: "warn", text: res.speeding.length + " segment(s) exceeded " + speedLimitKmh + " km/h." });
+    if (stops.length && !notReached && !negFlag) res.flags.push({ level: "ok", text: "All " + stops.length + " stop(s) verified within the geofence." });
+
+    return res;
+  }
+
+  /* ---- Loaded/deadhead path coloring ---- */
+  function refreshLegs() {
+    if (!showLegs) return;
+    legsLayer.clearLayers();
+    if (!showLegs.checked || currentPoints.length < 2) {
+      if (map.hasLayer(legsLayer)) map.removeLayer(legsLayer);
+      legsLegend.classList.remove("show");
+      if (showPath.checked && !map.hasLayer(pathLayer)) pathLayer.addTo(map);
+      return;
+    }
+    var nemt = computeNemt();
+    for (var i = 1; i < currentPoints.length; i++) {
+      var a = currentPoints[i - 1], b = currentPoints[i];
+      L.polyline([[a.lat, a.lng], [b.lat, b.lng]], {
+        color: nemt.segLoaded[i - 1] ? LOADED_COLOR : DEAD_COLOR, weight: 5, opacity: 0.9
+      }).addTo(legsLayer);
+    }
+    legsLayer.addTo(map);
+    if (map.hasLayer(pathLayer)) map.removeLayer(pathLayer);
+    legsLegend.classList.add("show");
+  }
+
+  showLegs.addEventListener("change", function () {
+    if (showLegs.checked && currentPoints.length < 2) {
+      showLegs.checked = false;
+      status.className = "status error";
+      status.textContent = "Load a run first to color loaded vs deadhead segments.";
+      return;
+    }
+    refreshLegs();
+  });
+
+  speedLimitInput.addEventListener("change", function () {
+    var v = Number(speedLimitInput.value);
+    if (Number.isFinite(v) && v >= 10 && v <= 200) speedLimitKmh = v;
+    else { speedLimitInput.value = speedLimitKmh; }
+  });
+
+  /* ---- Audit modal rendering ---- */
+  var lastNemt = null;
+
+  function fmtClock(ms) { return ms != null ? formatShortTime(ms) : "—"; }
+  function onTimeText(sec) {
+    if (sec == null) return "—";
+    var r = Math.round(sec);
+    if (r === 0) return "on time";
+    var a = Math.abs(r), mm = Math.floor(a / 60), ss = a % 60;
+    return (mm ? mm + "m " : "") + ss + "s " + (r > 0 ? "late" : "early");
+  }
+  function milesText(m) { return (m / M_PER_MILE).toFixed(2) + " mi"; }
+
+  function renderAudit() {
+    var nemt = computeNemt();
+    lastNemt = nemt;
+    var mi = nemt.mileage || {};
+
+    function kp(k, v, sub) {
+      return '<div class="stat-card"><div class="k">' + escapeHtml(k) + '</div><div class="v">' + v +
+        '</div>' + (sub ? '<div class="sub">' + escapeHtml(sub) + '</div>' : '') + '</div>';
+    }
+    var pk = nemt.stops.filter(function (s) { return s.kind === "pickup"; }).length;
+    var dp = nemt.stops.filter(function (s) { return s.kind === "dropoff"; }).length;
+    var verified = nemt.stops.filter(function (s) { return s.reached; }).length;
+    var k = [];
+    k.push(kp("Stops", nemt.stops.length, pk + " pickups / " + dp + " dropoffs"));
+    k.push(kp("Verified", verified + " / " + nemt.stops.length, "within " + nemt.radius + " m geofence"));
+    if (nemt.mileage) {
+      k.push(kp("Loaded miles", milesText(mi.loadedM), Math.round(mi.loadedPct) + "% · " + fmtDist(mi.loadedM)));
+      k.push(kp("Deadhead", milesText(mi.deadheadM), "empty · " + fmtDist(mi.deadheadM)));
+      k.push(kp("Total distance", milesText(mi.totalM), fmtDist(mi.totalM)));
+    }
+    k.push(kp("Max occupancy", nemt.occupancyMax, "passengers aboard (inferred)"));
+    auditKpis.innerHTML = k.join("");
+
+    auditFlags.innerHTML = nemt.flags.length ? nemt.flags.map(function (f) {
+      var icon = f.level === "bad" ? "⛔" : f.level === "warn" ? "⚠️" : "✅";
+      return '<div class="flag-row ' + f.level + '">' + icon + ' <span>' + escapeHtml(f.text) + '</span></div>';
+    }).join("") : '<div class="flag-row ok">✅ <span>Nothing flagged.</span></div>';
+
+    if (!nemt.stops.length) {
+      auditStops.innerHTML = '<tr><td style="color:var(--muted);white-space:normal">No pickup/dropoff markers yet. Add them in the sidebar (choose Pickup or Dropoff), then reopen this audit.</td></tr>';
+    } else {
+      var rows = nemt.stops.slice().sort(function (a, b) {
+        var ta = a.arrivalMs != null ? a.arrivalMs : Infinity, tb = b.arrivalMs != null ? b.arrivalMs : Infinity;
+        return ta - tb;
+      });
+      var head = "<tr><th>#</th><th>Type</th><th>Name</th><th>Verified</th><th>Arrival</th><th>Dwell</th><th>Scheduled</th><th>On-time</th><th>Nearest</th></tr>";
+      var body = rows.map(function (s, i) {
+        var badge = '<span class="cell-badge ' + s.kind + '">' + (s.kind === "pickup" ? "PICKUP" : "DROPOFF") + '</span>';
+        var ver = s.reached ? '<span class="cell-ok">✓ yes</span>' : '<span class="cell-bad">✗ no</span>';
+        return '<tr class="clickable" data-idx="' + s.minIdx + '"><td>' + (i + 1) + '</td><td>' + badge + '</td><td>' +
+          escapeHtml(s.name) + '</td><td>' + ver + '</td><td>' + fmtClock(s.arrivalMs) + '</td><td>' +
+          (s.dwellSec != null ? fmtDur(s.dwellSec) : "—") + '</td><td>' + (s.schedMs ? fmtClock(s.schedMs) : "—") +
+          '</td><td>' + onTimeText(s.onTimeSec) + '</td><td>' + s.nearestM + ' m</td></tr>';
+      }).join("");
+      auditStops.innerHTML = head + body;
+      Array.prototype.forEach.call(auditStops.querySelectorAll("tr.clickable"), function (tr) {
+        tr.addEventListener("click", function () {
+          var idx = Number(tr.getAttribute("data-idx"));
+          if (currentPoints[idx]) { closeAudit(); map.setView([currentPoints[idx].lat, currentPoints[idx].lng], Math.max(map.getZoom(), 16)); }
+        });
+      });
+    }
+  }
+
+  function openAudit() { if (currentPoints.length < 2) return; renderAudit(); auditOverlay.classList.remove("hidden"); }
+  function closeAudit() { auditOverlay.classList.add("hidden"); }
+
+  auditBtn.addEventListener("click", openAudit);
+  auditClose.addEventListener("click", closeAudit);
+  auditOverlay.addEventListener("click", function (e) { if (e.target === auditOverlay) closeAudit(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !auditOverlay.classList.contains("hidden")) closeAudit(); });
+
+  /* ---- NEMT report export ---- */
+  function buildNemtModel() {
+    var nemt = computeNemt();
+    var mi = nemt.mileage || {};
+    return {
+      schemaVersion: 1,
+      documentType: "NEMT trip audit",
+      generatedBy: "Run GPS Viewer — NEMT Trip Audit",
+      generatedAt: new Date().toISOString(),
+      source: {
+        file: currentFilename || null,
+        timezoneUsedForDisplay: timezone.value,
+        blipCount: currentPoints.length,
+        geofenceRadiusMeters: nemt.radius,
+        speedLimitKmh: nemt.speedLimit,
+        note: "Loaded vs deadhead and occupancy are INFERRED geometrically from the order in which the vehicle reached the pickup/dropoff markers; they do not come from trip-status data."
+      },
+      mileage: {
+        totalMeters: round(mi.totalM, 1), loadedMeters: round(mi.loadedM, 1), deadheadMeters: round(mi.deadheadM, 1),
+        loadedPercent: round(mi.loadedPct, 1),
+        totalMiles: round((mi.totalM || 0) / M_PER_MILE, 2), loadedMiles: round((mi.loadedM || 0) / M_PER_MILE, 2), deadheadMiles: round((mi.deadheadM || 0) / M_PER_MILE, 2)
+      },
+      maxOccupancy: nemt.occupancyMax,
+      flags: nemt.flags,
+      stops: nemt.stops.map(function (s) {
+        return {
+          name: s.name, kind: s.kind, lat: round(s.lat, 7), lng: round(s.lng, 7),
+          verifiedWithinGeofence: s.reached, nearestApproachMeters: s.nearestM,
+          arrivalIso: s.arrivalMs ? new Date(s.arrivalMs).toISOString() : null,
+          departureIso: s.departureMs ? new Date(s.departureMs).toISOString() : null,
+          dwellSeconds: s.dwellSec != null ? round(s.dwellSec, 0) : null,
+          scheduledIso: s.schedMs ? new Date(s.schedMs).toISOString() : null,
+          onTimeDeltaSeconds: s.onTimeSec != null ? round(s.onTimeSec, 0) : null,
+          flags: s.flags
+        };
+      }),
+      speedingSegments: nemt.speeding
+    };
+  }
+
+  function nemtToMarkdown(m) {
+    var L2 = [];
+    var s = m.source, mi = m.mileage;
+    L2.push("# NEMT Trip Audit — " + (s.file || "run"));
+    L2.push("");
+    L2.push("> **For Claude / billing & compliance review:** This report verifies a Non-Emergency Medical Transport trip against the driver's recorded GPS track. It documents whether the vehicle actually reached each scheduled pickup/dropoff, arrival and dwell times, on-time performance, and loaded (billable) vs. deadhead mileage. When read alongside the source code that records or processes these GPS points, use the flags to trace GPS-quality or trip-handling issues to the responsible logic. Full structured data is embedded as JSON at the end.");
+    L2.push("");
+    L2.push("**Inference note:** " + s.note);
+    L2.push("");
+    L2.push("## Trip summary");
+    L2.push("");
+    L2.push("| Metric | Value |");
+    L2.push("| --- | --- |");
+    L2.push("| Source file | " + (s.file || "—") + " |");
+    L2.push("| GPS blips | " + s.blipCount + " |");
+    L2.push("| Geofence radius | " + s.geofenceRadiusMeters + " m |");
+    L2.push("| Total distance | " + mi.totalMiles + " mi (" + fmtDist(mi.totalMeters) + ") |");
+    L2.push("| **Loaded (billable) miles** | **" + mi.loadedMiles + " mi** (" + mi.loadedPercent + "% of total) |");
+    L2.push("| Deadhead miles | " + mi.deadheadMiles + " mi |");
+    L2.push("| Max passengers aboard (inferred) | " + m.maxOccupancy + " |");
+    L2.push("");
+    L2.push("## Compliance flags");
+    L2.push("");
+    if (!m.flags.length) L2.push("_Nothing flagged._");
+    else m.flags.forEach(function (f) {
+      var tag = f.level === "bad" ? "❌ ISSUE" : f.level === "warn" ? "⚠️ WARNING" : "✅ OK";
+      L2.push("- **" + tag + ":** " + f.text);
+    });
+    L2.push("");
+    L2.push("## Stops");
+    L2.push("");
+    if (!m.stops.length) {
+      L2.push("_No pickup/dropoff markers were placed._");
+    } else {
+      L2.push("| Type | Name | Verified | Arrival | Dwell | Scheduled | On-time | Nearest |");
+      L2.push("| --- | --- | --- | --- | --- | --- | --- | --- |");
+      m.stops.slice().sort(function (a, b) {
+        var ta = a.arrivalIso || "~", tb = b.arrivalIso || "~"; return ta < tb ? -1 : ta > tb ? 1 : 0;
+      }).forEach(function (st) {
+        L2.push("| " + st.kind + " | " + st.name + " | " + (st.verifiedWithinGeofence ? "yes" : "**NO**") + " | " +
+          (st.arrivalIso ? fmtClock(new Date(st.arrivalIso).getTime()) : "—") + " | " +
+          (st.dwellSeconds != null ? fmtDur(st.dwellSeconds) : "—") + " | " +
+          (st.scheduledIso ? fmtClock(new Date(st.scheduledIso).getTime()) : "—") + " | " +
+          (st.onTimeDeltaSeconds != null ? onTimeText(st.onTimeDeltaSeconds) : "—") + " | " +
+          st.nearestApproachMeters + " m |");
+      });
+    }
+    L2.push("");
+    if (m.speedingSegments.length) {
+      L2.push("## Speeding segments (> " + s.speedLimitKmh + " km/h)");
+      L2.push("");
+      L2.push("| From→To blip | Speed (km/h) | Distance (m) | Gap (s) |");
+      L2.push("| --- | --- | --- | --- |");
+      m.speedingSegments.forEach(function (sp) { L2.push("| " + sp.fromBlip + "→" + sp.toBlip + " | " + sp.speedKmh + " | " + sp.distanceM + " | " + sp.gapSec + " |"); });
+      L2.push("");
+    }
+    L2.push("## Machine-readable data");
+    L2.push("");
+    L2.push("```json");
+    L2.push(JSON.stringify(m, null, 2));
+    L2.push("```");
+    L2.push("");
+    return L2.join("\n");
+  }
+
+  function reportHtml(m) {
+    var s = m.source, mi = m.mileage;
+    var rows = m.stops.slice().sort(function (a, b) { var ta = a.arrivalIso || "~", tb = b.arrivalIso || "~"; return ta < tb ? -1 : ta > tb ? 1 : 0; }).map(function (st) {
+      return "<tr><td>" + st.kind + "</td><td>" + escapeHtml(st.name) + "</td><td>" + (st.verifiedWithinGeofence ? "yes" : "<b style='color:#b91c1c'>NO</b>") +
+        "</td><td>" + (st.arrivalIso ? fmtClock(new Date(st.arrivalIso).getTime()) : "—") + "</td><td>" + (st.dwellSeconds != null ? fmtDur(st.dwellSeconds) : "—") +
+        "</td><td>" + (st.scheduledIso ? fmtClock(new Date(st.scheduledIso).getTime()) : "—") + "</td><td>" + (st.onTimeDeltaSeconds != null ? onTimeText(st.onTimeDeltaSeconds) : "—") +
+        "</td><td>" + st.nearestApproachMeters + " m</td></tr>";
+    }).join("");
+    var flags = m.flags.map(function (f) { return "<li>" + (f.level === "bad" ? "❌ " : f.level === "warn" ? "⚠️ " : "✅ ") + escapeHtml(f.text) + "</li>"; }).join("");
+    return "<style>body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:28px;} h1{font-size:20px;} table{border-collapse:collapse;width:100%;font-size:12px;margin-top:8px;} th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;} .kpis{margin:10px 0;font-size:13px;} .kpis b{font-size:15px;} li{margin:3px 0;font-size:13px;}</style>" +
+      "<h1>NEMT Trip Audit — " + escapeHtml(s.file || "run") + "</h1>" +
+      "<div class='kpis'>Loaded (billable): <b>" + mi.loadedMiles + " mi</b> &nbsp;|&nbsp; Deadhead: " + mi.deadheadMiles + " mi &nbsp;|&nbsp; Total: " + mi.totalMiles + " mi &nbsp;|&nbsp; Geofence " + s.geofenceRadiusMeters + " m</div>" +
+      "<p style='font-size:11px;color:#555'>" + escapeHtml(s.note) + " Generated " + new Date(m.generatedAt).toLocaleString() + ".</p>" +
+      "<h3>Compliance flags</h3><ul>" + (flags || "<li>Nothing flagged.</li>") + "</ul>" +
+      "<h3>Stops</h3><table><tr><th>Type</th><th>Name</th><th>Verified</th><th>Arrival</th><th>Dwell</th><th>Scheduled</th><th>On-time</th><th>Nearest</th></tr>" + (rows || "<tr><td colspan='8'>No stops.</td></tr>") + "</table>";
+  }
+
+  auditReportMd.addEventListener("click", function () {
+    if (currentPoints.length < 2) return;
+    downloadFile(safeName("nemt_trip_audit", "md"), nemtToMarkdown(buildNemtModel()), "text/markdown");
+  });
+  auditReportJson.addEventListener("click", function () {
+    if (currentPoints.length < 2) return;
+    downloadFile(safeName("nemt_trip_audit", "json"), JSON.stringify(buildNemtModel(), null, 2), "application/json");
+  });
+  auditPrint.addEventListener("click", function () {
+    if (currentPoints.length < 2) return;
+    var w = window.open("", "_blank");
+    if (!w) {
+      status.className = "status error";
+      status.textContent = "Your browser blocked the print window — use the .md export and print that instead.";
+      return;
+    }
+    w.document.write("<html><head><title>NEMT Trip Audit</title></head><body>" + reportHtml(buildNemtModel()) + "</body></html>");
+    w.document.close(); w.focus();
+    setTimeout(function () { try { w.print(); } catch (e) {} }, 400);
+  });
+
+  /* ============ Save / restore full session (new) ============ */
+
+  var SESSION_SIG = "run-gps-viewer-session";
+  var saveSessionBtn = $("saveSession");
+
+  function collectSettings() {
+    var c = map.getCenter();
+    return {
+      timezone: timezone.value,
+      geofenceRadius: geofenceRadius,
+      speedLimitKmh: speedLimitKmh,
+      theme: (document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light"),
+      currentKind: currentKind,
+      show: {
+        path: showPath.checked, markers: showMarkers.checked, labels: showLabels.checked,
+        custom: showCustom.checked, legs: showLegs.checked
+      },
+      view: { center: [c.lat, c.lng], zoom: map.getZoom() }
+    };
+  }
+
+  function buildSession() {
+    return {
+      __type: SESSION_SIG,
+      schemaVersion: 1,
+      generatedBy: "Run GPS Viewer",
+      generatedAt: new Date().toISOString(),
+      settings: collectSettings(),
+      run: currentPoints.length ? { filename: currentFilename, points: currentPoints } : null,
+      markers: customMarkers.map(function (m) {
+        return {
+          name: m.name, lat: m.lat, lng: m.lng, color: m.color,
+          kind: m.kind, scheduledIso: m.schedMs ? new Date(m.schedMs).toISOString() : null
+        };
+      })
+    };
+  }
+
+  saveSessionBtn.addEventListener("click", function () {
+    if (!currentPoints.length && !customMarkers.length) {
+      status.className = "status error";
+      status.textContent = "Nothing to save yet — load a run or add markers first.";
+      return;
+    }
+    downloadFile(safeName("gps_session", "json"), JSON.stringify(buildSession(), null, 2), "application/json");
+    status.className = "status";
+    status.textContent = "Session saved. Re-upload this file (Upload button or drag & drop) to restore the run, markers, settings and view.";
+  });
+
+  function restoreSession(json, fallbackName) {
+    var s = json.settings || {};
+
+    // --- settings first (so drawRun honors visibility toggles) ---
+    if (s.timezone) {
+      for (var i = 0; i < timezone.options.length; i++) {
+        if (timezone.options[i].value === s.timezone) { timezone.value = s.timezone; break; }
+      }
+    }
+    if (typeof s.geofenceRadius === "number") {
+      geofenceRadius = s.geofenceRadius; geofence.value = s.geofenceRadius; geofenceVal.textContent = s.geofenceRadius + " m";
+    }
+    if (typeof s.speedLimitKmh === "number") { speedLimitKmh = s.speedLimitKmh; speedLimitInput.value = s.speedLimitKmh; }
+    if (s.theme) { applyTheme(s.theme === "dark", true); }
+    if (s.currentKind) { currentKind = s.currentKind; applyKindUI(); }
+    if (s.show) {
+      showPath.checked = !!s.show.path;
+      showMarkers.checked = !!s.show.markers;
+      showLabels.checked = !!s.show.labels;
+      showCustom.checked = (s.show.custom !== false);
+      showLegs.checked = !!s.show.legs;
+    }
+
+    // --- clear existing markers ---
+    customMarkers.forEach(function (m) { customLayer.removeLayer(m.marker); });
+    customMarkers = [];
+
+    // --- run ---
+    if (json.run && Array.isArray(json.run.points) && json.run.points.length) {
+      currentPoints = json.run.points.map(function (p) {
+        return {
+          id: (p.id != null ? p.id : ""), lat: Number(p.lat), lng: Number(p.lng), time: Number(p.time),
+          accuracy: p.accuracy, speed: p.speed, distance: p.distance, bearing: p.bearing,
+          statusId: (p.statusId != null ? p.statusId : null), bookingId: (p.bookingId != null ? p.bookingId : null)
+        };
+      }).filter(function (p) { return Number.isFinite(p.lat) && Number.isFinite(p.lng) && Number.isFinite(p.time); });
+      currentPoints.sort(function (a, b) { return a.time - b.time; });
+      currentFilename = json.run.filename || fallbackName || "session";
+      drawRun(false); // no auto-fit; we restore the saved view below
+    } else {
+      currentPoints = [];
+      currentFilename = "";
+      clearRunLayers();
+      pointMarkers = [];
+      playbar.classList.add("disabled");
+      playInfo.textContent = "—";
+      if (analyticsBtn) analyticsBtn.disabled = true;
+      if (auditBtn) auditBtn.disabled = true;
+    }
+
+    // --- markers ---
+    (json.markers || []).forEach(function (o) {
+      if (!o) return;
+      var lat = Number(o.lat), lng = Number(o.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      var col = (typeof o.color === "string" && /^#[0-9a-fA-F]{6}$/.test(o.color)) ? o.color : DEFAULT_COLOR;
+      var kd = (o.kind === "pickup" || o.kind === "dropoff") ? o.kind : "plain";
+      var sm = null;
+      if (o.scheduledIso) { var tt = new Date(o.scheduledIso).getTime(); if (Number.isFinite(tt)) sm = tt; }
+      addCustomMarker(lat, lng, (o.name != null ? String(o.name) : ""), { color: col, kind: kd, schedMs: sm });
+    });
+
+    // --- custom-layer visibility per settings ---
+    if (showCustom.checked) { customLayer.addTo(map); geofenceLayer.addTo(map); }
+    else {
+      if (map.hasLayer(customLayer)) map.removeLayer(customLayer);
+      if (map.hasLayer(geofenceLayer)) map.removeLayer(geofenceLayer);
+    }
+    drawGeofences();
+    refreshLegs();
+    updateSummary();
+
+    // --- restore view ---
+    if (s.view && Array.isArray(s.view.center) && s.view.center.length === 2) {
+      map.setView(s.view.center, (typeof s.view.zoom === "number" ? s.view.zoom : map.getZoom()));
+    } else {
+      fitEverything();
+    }
+
+    status.className = "status";
+    status.textContent = "Session restored — " +
+      (currentPoints.length ? currentPoints.length + " blips, " : "no run, ") +
+      customMarkers.length + " marker" + (customMarkers.length === 1 ? "" : "s") + ", settings and view applied.";
+  }
+
+  /* ============ Dark / light theme (new) ============ */
+
+  var themeToggle = $("themeToggle");
+
+  function isDark() { return document.documentElement.getAttribute("data-theme") === "dark"; }
+
+  function applyTheme(dark, skipReRender) {
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    themeToggle.textContent = dark ? "☀️ Light" : "🌙 Dark";
+    themeToggle.setAttribute("aria-pressed", dark ? "true" : "false");
+    setBaseTiles(dark);
+    if (!skipReRender && analyticsOverlay && !analyticsOverlay.classList.contains("hidden")) openAnalytics();
+    try { localStorage.setItem("rgv-theme", dark ? "dark" : "light"); } catch (e) {}
+  }
+
+  themeToggle.addEventListener("click", function () { applyTheme(!isDark()); });
+
+  (function initTheme() {
+    var pref = null;
+    try { pref = localStorage.getItem("rgv-theme"); } catch (e) {}
+    var dark = pref ? (pref === "dark")
+      : (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    applyTheme(!!dark, true);
+  })();
+
+  buildSwatchRow();
+  renderList();
+})();
+</script>
+</body>
+</html>

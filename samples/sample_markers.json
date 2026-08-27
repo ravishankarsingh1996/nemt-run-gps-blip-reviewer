@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Patient Home",
+    "lat": 12.965,
+    "lng": 77.5975,
+    "color": "#059669",
+    "kind": "pickup",
+    "scheduledIso": "2023-07-22T04:25:00.000Z"
+  },
+  {
+    "name": "Dialysis Center",
+    "lat": 12.985,
+    "lng": 77.6225,
+    "color": "#dc2626",
+    "kind": "dropoff",
+    "scheduledIso": "2023-07-22T04:50:00.000Z"
+  },
+  {
+    "name": "Dispatch Depot",
+    "lat": 12.96,
+    "lng": 77.59,
+    "color": "#2563eb",
+    "kind": "plain",
+    "scheduledIso": null
+  }
+]
