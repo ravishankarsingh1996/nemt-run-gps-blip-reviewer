@@ -188,7 +188,7 @@ Use **⬇ Export** / **⬆ Import** to save the marker set to a JSON file and re
 
 Two settings in the sidebar tune the audit:
 
-- **Geofence radius** — the distance (20–300 m) around each pickup/dropoff within which the vehicle counts as "reached" the stop. A faint circle is drawn around each pickup/dropoff so you can see the zone. Tighten it for strict verification; widen it for large facilities or noisy GPS.
+- **Geofence radius** — the distance (20–500 m) around each pickup/dropoff within which the vehicle counts as "reached" the stop. A faint circle is drawn around each pickup/dropoff so you can see the zone. Tighten it for strict verification; widen it for large facilities or noisy GPS.
 - **Speed limit for safety flags** — segments faster than this (default 80 km/h) are flagged in the audit.
 
 ![Pickup, dropoff, and depot markers on the map with geofence circles](images/06-markers-map.png)
